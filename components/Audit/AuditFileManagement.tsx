@@ -4,7 +4,7 @@ import {
   Plus, FileText, Building2, CalendarDays, Upload, 
   X, Save, FileCheck, Table, FileArchive, Search,
   Eye, Download, Trash2, CheckCircle2, AlertCircle, FileSpreadsheet,
-  FileSignature, ChevronDown, List, LayoutGrid, Hash
+  FileSignature, ChevronDown, List, LayoutGrid, Hash, History
 } from 'lucide-react';
 import { Company } from '../../types';
 import * as XLSX from 'xlsx';
@@ -18,6 +18,7 @@ interface AuditFile {
   registrationFile?: string;
   licenseFile?: string;
   trialBalanceFile?: string;
+  lastYearFinancialsFile?: string;
   uploadDate: string;
   status: 'Pending' | 'Completed' | 'Review';
 }
@@ -50,7 +51,8 @@ const AuditFileManagement: React.FC<AuditFileManagementProps> = ({
     appointmentLetter: null as File | null,
     registration: null as File | null,
     license: null as File | null,
-    trialBalance: null as File | null
+    trialBalance: null as File | null,
+    lastYearFinancials: null as File | null
   });
 
   const filteredFiles = useMemo(() => {
@@ -91,8 +93,16 @@ const AuditFileManagement: React.FC<AuditFileManagementProps> = ({
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!formData.companyId || !formData.financialYear || !formData.appointmentLetter || !formData.registration || !formData.license) {
-      alert('يرجى اختيار الشركة والسنة ورفع الملفات الإجبارية (كتاب التعيين، السجل التجاري، رخصة المهن)');
+    if (
+      !formData.companyId || 
+      !formData.financialYear || 
+      !formData.appointmentLetter || 
+      !formData.registration || 
+      !formData.license ||
+      !formData.lastYearFinancials ||
+      !formData.trialBalance
+    ) {
+      alert('يرجى اختيار الشركة والسنة ورفع جميع الملفات الإجبارية المطلوبة');
       return;
     }
     const company = companies.find(c => c.id === formData.companyId);
@@ -106,7 +116,15 @@ const AuditFileManagement: React.FC<AuditFileManagementProps> = ({
     };
     onUpdateFiles([newFile, ...auditFiles]);
     setExternalShowModal?.(false);
-    setFormData({ companyId: '', financialYear: '', appointmentLetter: null, registration: null, license: null, trialBalance: null });
+    setFormData({ 
+      companyId: '', 
+      financialYear: '', 
+      appointmentLetter: null, 
+      registration: null, 
+      license: null, 
+      trialBalance: null,
+      lastYearFinancials: null
+    });
   };
 
   return (
@@ -286,6 +304,30 @@ const AuditFileManagement: React.FC<AuditFileManagementProps> = ({
                       <label className="cursor-pointer bg-white px-5 py-2.5 rounded-xl border border-gray-100 shadow-sm text-xs font-black text-blue-600 hover:bg-blue-600 hover:text-white transition-all w-full sm:w-auto">
                         {formData.license ? 'تغيير الملف' : 'تحميل الملف'}
                         <input type="file" className="hidden" accept=".pdf,.jpg,.png" onChange={(e) => handleFileChange(e, 'license')} />
+                      </label>
+                    </div>
+                  </div>
+
+                  {/* ميزانية العام السابق */}
+                  <div className="p-4 sm:p-6 border-2 border-dashed border-gray-200 rounded-[1.5rem] sm:rounded-3xl hover:border-blue-300 transition-all bg-gray-50/30 group">
+                    <div className="flex flex-col sm:flex-row items-center justify-between gap-4 text-center sm:text-right">
+                      <div className="flex items-center gap-3 sm:gap-4">
+                        <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-xl sm:rounded-2xl bg-white shadow-sm flex items-center justify-center text-indigo-600">
+                          <History size={20} />
+                        </div>
+                        <div>
+                          <p className="font-black text-gray-800 text-sm">ميزانية العام السابق *</p>
+                          {formData.financialYear && (
+                            <p className="text-[10px] text-blue-600 font-black">
+                              يرجى رفع ميزانية عام {parseInt(formData.financialYear) - 1}
+                            </p>
+                          )}
+                          <p className="text-[10px] text-gray-400 font-bold">PDF فقط</p>
+                        </div>
+                      </div>
+                      <label className="cursor-pointer bg-white px-5 py-2.5 rounded-xl border border-gray-100 shadow-sm text-xs font-black text-blue-600 hover:bg-blue-600 hover:text-white transition-all w-full sm:w-auto">
+                        {formData.lastYearFinancials ? 'تغيير الملف' : 'تحميل الملف'}
+                        <input type="file" className="hidden" accept=".pdf" onChange={(e) => handleFileChange(e, 'lastYearFinancials')} />
                       </label>
                     </div>
                   </div>
