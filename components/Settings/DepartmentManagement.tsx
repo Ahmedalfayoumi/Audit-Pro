@@ -1,21 +1,29 @@
 
 import React, { useState } from 'react';
 import { Layers, Plus, Trash2, Edit2, Search, X, Save, List, LayoutGrid } from 'lucide-react';
-import { Department } from '../../types';
+import { Department, Position } from '../../types';
 
 interface DepartmentManagementProps {
   departments: Department[];
   onUpdate: (departments: Department[]) => void;
+  positions: Position[];
 }
 
-const DepartmentManagement: React.FC<DepartmentManagementProps> = ({ departments, onUpdate }) => {
+const DepartmentManagement: React.FC<DepartmentManagementProps> = ({ departments, onUpdate, positions }) => {
   const [currentView, setCurrentView] = useState<'list' | 'grid'>('list');
   const [showModal, setShowModal] = useState(false);
   const [editingDept, setEditingDept] = useState<Department | null>(null);
   const [formData, setFormData] = useState({ name: '' });
 
+  // التحقق من الارتباط
+  const isDeptLinked = (deptName: string) => positions.some(p => p.department === deptName);
+
   const handleOpenModal = (dept?: Department) => {
     if (dept) {
+      if (isDeptLinked(dept.name)) {
+        alert(`لا يمكن تعديل القسم "${dept.name}" لوجود مسميات وظيفية مرتبطة به حالياً.`);
+        return;
+      }
       setEditingDept(dept);
       setFormData({ name: dept.name });
     } else {
@@ -41,8 +49,13 @@ const DepartmentManagement: React.FC<DepartmentManagementProps> = ({ departments
     setShowModal(false);
   };
 
-  const handleDelete = (id: string) => {
-    if (confirm('هل أنت متأكد من حذف هذا القسم؟ قد يؤثر ذلك على المسميات الوظيفية المرتبطة به.')) {
+  const handleDelete = (id: string, deptName: string) => {
+    if (isDeptLinked(deptName)) {
+      alert(`فشل الحذف: القسم "${deptName}" مرتبط بمسميات وظيفية مفعلة. يرجى حذف المسميات أو نقلها أولاً.`);
+      return;
+    }
+
+    if (confirm(`هل أنت متأكد من حذف قسم "${deptName}"؟`)) {
       onUpdate(departments.filter(d => d.id !== id));
     }
   };
@@ -52,26 +65,26 @@ const DepartmentManagement: React.FC<DepartmentManagementProps> = ({ departments
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-8">
         <div>
           <h3 className="text-2xl font-black text-gray-800">إدارة الأقسام</h3>
-          <p className="text-gray-500 text-sm mt-1">تعريف الأقسام والإدارات داخل المنشأة</p>
+          <p className="text-gray-500 text-sm mt-1 font-medium">تعريف الأقسام والإدارات داخل المنشأة</p>
         </div>
         <div className="flex items-center gap-4 w-full sm:w-auto">
           <div className="bg-white p-1 rounded-xl border border-gray-100 shadow-sm flex gap-1">
             <button 
               onClick={() => setCurrentView('list')}
-              className={`p-2 rounded-lg transition-all flex items-center gap-2 text-xs font-black ${currentView === 'list' ? 'bg-blue-600 text-white shadow-md' : 'text-gray-400 hover:bg-gray-50'}`}
+              className={`p-2 rounded-lg transition-all flex items-center gap-2 text-xs font-black ${currentView === 'list' ? 'theme-bg-primary text-white shadow-md' : 'text-gray-400 hover:bg-gray-50'}`}
             >
               <List size={16} /> قائمة
             </button>
             <button 
               onClick={() => setCurrentView('grid')}
-              className={`p-2 rounded-lg transition-all flex items-center gap-2 text-xs font-black ${currentView === 'grid' ? 'bg-blue-600 text-white shadow-md' : 'text-gray-400 hover:bg-gray-50'}`}
+              className={`p-2 rounded-lg transition-all flex items-center gap-2 text-xs font-black ${currentView === 'grid' ? 'theme-bg-primary text-white shadow-md' : 'text-gray-400 hover:bg-gray-50'}`}
             >
               <LayoutGrid size={16} /> شبكة
             </button>
           </div>
           <button 
             onClick={() => handleOpenModal()}
-            className="flex-1 sm:flex-none flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-2xl font-black shadow-lg transition-all hover:scale-[1.02] active:scale-95"
+            className="flex-1 sm:flex-none flex items-center justify-center gap-2 theme-bg-primary text-white px-6 py-3 rounded-2xl font-black shadow-lg hover:opacity-90 transition-all active:scale-95"
           >
             <Plus size={20} /> إضافة قسم
           </button>
@@ -80,50 +93,72 @@ const DepartmentManagement: React.FC<DepartmentManagementProps> = ({ departments
 
       {currentView === 'grid' ? (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
-          {departments.map((dept) => (
-            <div key={dept.id} className="bg-white p-6 rounded-[2.5rem] shadow-sm border border-gray-100 hover:shadow-xl hover:scale-[1.01] transition-all group relative">
-              <div className="w-12 h-12 rounded-2xl bg-indigo-50 text-indigo-600 flex items-center justify-center mb-4">
-                <Layers size={24} />
+          {departments.map((dept) => {
+            const isLinked = isDeptLinked(dept.name);
+            return (
+              <div key={dept.id} className="bg-white p-6 rounded-[2.5rem] shadow-sm border border-gray-100 hover:shadow-xl hover:scale-[1.01] transition-all group relative">
+                <div className="w-12 h-12 rounded-2xl bg-indigo-50 text-indigo-600 flex items-center justify-center mb-4">
+                  <Layers size={24} />
+                </div>
+                <h4 className="text-lg font-black text-gray-800 mb-6">{dept.name}</h4>
+                <div className="pt-4 border-t border-gray-50 flex justify-end gap-2">
+                  <button 
+                    disabled={isLinked}
+                    onClick={() => handleOpenModal(dept)} 
+                    className={`p-2 rounded-xl transition-all ${isLinked ? 'text-gray-200 cursor-not-allowed' : 'text-blue-600 hover:bg-blue-50'}`}
+                  >
+                    <Edit2 size={16} />
+                  </button>
+                  <button 
+                    disabled={isLinked}
+                    onClick={() => handleDelete(dept.id, dept.name)} 
+                    className={`p-2 rounded-xl transition-all ${isLinked ? 'text-gray-200 cursor-not-allowed' : 'text-red-500 hover:bg-red-50'}`}
+                  >
+                    <Trash2 size={16} />
+                  </button>
+                </div>
               </div>
-              <h4 className="text-lg font-black text-gray-800 mb-6">{dept.name}</h4>
-              <div className="pt-4 border-t border-gray-50 flex justify-end gap-2">
-                <button onClick={() => handleOpenModal(dept)} className="p-2 text-blue-600 hover:bg-blue-50 rounded-xl transition-all">
-                  <Edit2 size={16} />
-                </button>
-                <button onClick={() => handleDelete(dept.id)} className="p-2 text-red-500 hover:bg-red-50 rounded-xl transition-all">
-                  <Trash2 size={16} />
-                </button>
-              </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       ) : (
         <div className="bg-white rounded-3xl shadow-sm border border-gray-100 overflow-hidden animate-in fade-in duration-500">
           <div className="p-4 border-b border-gray-50">
             <div className="relative">
               <Search size={16} className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400" />
-              <input placeholder="بحث عن قسم..." className="w-full pr-12 pl-4 py-3 bg-gray-50 border-none rounded-xl text-sm outline-none" />
+              <input placeholder="بحث عن قسم..." className="w-full pr-12 pl-4 py-3 bg-gray-50 border-none rounded-xl text-sm outline-none font-bold" />
             </div>
           </div>
           <div className="divide-y divide-gray-50">
-            {departments.map((dept) => (
-              <div key={dept.id} className="p-5 flex items-center justify-between hover:bg-gray-50 transition-all group">
-                <div className="flex items-center gap-4">
-                  <div className="w-10 h-10 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center">
-                    <Layers size={20} />
+            {departments.map((dept) => {
+              const isLinked = isDeptLinked(dept.name);
+              return (
+                <div key={dept.id} className="p-5 flex items-center justify-between hover:bg-gray-50 transition-all group">
+                  <div className="flex items-center gap-4">
+                    <div className="w-10 h-10 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center">
+                      <Layers size={20} />
+                    </div>
+                    <p className="font-black text-gray-800 text-sm sm:text-base">{dept.name}</p>
                   </div>
-                  <p className="font-black text-gray-800 text-sm sm:text-base">{dept.name}</p>
+                  <div className="flex gap-1 md:opacity-0 group-hover:opacity-100 transition-opacity">
+                    <button 
+                      disabled={isLinked}
+                      onClick={() => handleOpenModal(dept)} 
+                      className={`p-2 rounded-xl transition-all ${isLinked ? 'text-gray-200 cursor-not-allowed' : 'text-blue-600 hover:bg-blue-100'}`}
+                    >
+                      <Edit2 size={16} />
+                    </button>
+                    <button 
+                      disabled={isLinked}
+                      onClick={() => handleDelete(dept.id, dept.name)} 
+                      className={`p-2 rounded-xl transition-all ${isLinked ? 'text-gray-200 cursor-not-allowed' : 'text-red-500 hover:bg-red-100'}`}
+                    >
+                      <Trash2 size={16} />
+                    </button>
+                  </div>
                 </div>
-                <div className="flex gap-1 md:opacity-0 group-hover:opacity-100 transition-opacity">
-                  <button onClick={() => handleOpenModal(dept)} className="p-2 text-blue-600 hover:bg-blue-100 rounded-xl transition-all">
-                    <Edit2 size={16} />
-                  </button>
-                  <button onClick={() => handleDelete(dept.id)} className="p-2 text-red-500 hover:bg-red-100 rounded-xl transition-all">
-                    <Trash2 size={16} />
-                  </button>
-                </div>
-              </div>
-            ))}
+              );
+            })}
             {departments.length === 0 && (
               <div className="p-20 text-center text-gray-400 italic font-bold">لا توجد أقسام معرفة حالياً</div>
             )}
@@ -148,12 +183,12 @@ const DepartmentManagement: React.FC<DepartmentManagementProps> = ({ departments
                   autoFocus
                   value={formData.name} 
                   onChange={e => setFormData({ name: e.target.value })} 
-                  className="w-full p-4 border border-gray-200 rounded-2xl outline-none focus:ring-2 focus:ring-indigo-500 transition-all font-bold" 
+                  className="w-full p-4 border border-gray-200 rounded-2xl outline-none focus:ring-2 theme-focus-ring transition-all font-bold" 
                   placeholder="مثال: قسم التدقيق الخارجي" 
                 />
               </div>
-              <button type="submit" className="w-full bg-indigo-600 text-white py-4 rounded-xl font-black flex items-center justify-center gap-2 active:scale-95 shadow-lg shadow-indigo-600/20">
-                <Save size={18} /> حفظ البيانات
+              <button type="submit" className="w-full theme-bg-primary text-white py-4 rounded-xl font-black flex items-center justify-center gap-2 active:scale-95 shadow-lg">
+                <Save size={18} /> {editingDept ? 'تحديث' : 'حفظ'} البيانات
               </button>
             </form>
           </div>

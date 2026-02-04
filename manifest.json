@@ -1,0 +1,17 @@
+
+{
+  "name": "Audit Pro",
+  "short_name": "AuditPro",
+  "description": "Professional Audit and Client Management System",
+  "start_url": ".",
+  "display": "standalone",
+  "background_color": "#f8fafc",
+  "theme_color": "#2563eb",
+  "icons": [
+    {
+      "src": "https://cdn-icons-png.flaticon.com/512/3201/3201521.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}

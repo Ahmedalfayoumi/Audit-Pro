@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useMemo } from 'react';
 import { Users, Plus, Mail, Shield, UserPlus, Trash2, Edit2, CheckCircle2, XCircle, X, Save, Eye, Activity, AlertCircle, Ban, Lock, UserCircle, Briefcase, Info, Calendar, User as UserIcon, List, LayoutGrid, Clock, AlertTriangle, Search } from 'lucide-react';
 import { Position } from '../../types';
 
@@ -18,33 +18,14 @@ interface User {
 interface UserManagementProps {
   positions: Position[];
   externalSearchQuery?: string;
+  users: User[];
+  setUsers: React.Dispatch<React.SetStateAction<User[]>>;
 }
 
-const UserManagement: React.FC<UserManagementProps> = ({ positions, externalSearchQuery = '' }) => {
+const UserManagement: React.FC<UserManagementProps> = ({ positions, externalSearchQuery = '', users, setUsers }) => {
   const [currentView, setCurrentView] = useState<'list' | 'grid'>('list');
   const [localSearchQuery, setLocalSearchQuery] = useState('');
   
-  // نظام تخزين دائم للمستخدمين
-  const [users, setUsers] = useState<User[]>(() => {
-    const saved = localStorage.getItem('audit_pro_users_list');
-    if (saved) return JSON.parse(saved);
-    return [
-      { id: '1', name: 'أحمد محمود', username: 'ahmed.admin', email: 'ahmed@auditpro.jo', position: 'مدير مالي', role: 'مدير نظام', status: 'نشط', joinDate: '2023-01-15' },
-      { id: '2', name: 'سارة خالد', username: 'sara.auditor', email: 'sara@auditpro.jo', position: 'مدقق حسابات', role: 'مدقق', status: 'نشط', joinDate: '2023-05-20' },
-      { id: '3', name: 'ياسين علي', username: 'yassin.v', email: 'yassin@auditpro.jo', position: 'مساعد مدقق', role: 'مشاهد', status: 'موقوف', joinDate: '2024-02-10' },
-      { id: '4', name: 'ليلى منصور', username: 'laila.m', email: 'laila@auditpro.jo', position: 'مدقق أول', role: 'مدقق', status: 'نشط', joinDate: '2023-08-12' },
-      { id: '5', name: 'عمر الخطيب', username: 'omar.k', email: 'omar@auditpro.jo', position: 'محاسب قانوني', role: 'مدير نظام', status: 'نشط', joinDate: '2023-11-01' },
-      { id: '6', name: 'هبة الزعبي', username: 'heba.z', email: 'heba@auditpro.jo', position: 'مراقب مالي', role: 'مدقق', status: 'نشط', joinDate: '2024-01-05' },
-      { id: '7', name: 'فيصل القاسم', username: 'faisal.q', email: 'faisal@auditpro.jo', position: 'مساعد مدقق', role: 'مشاهد', status: 'نشط', joinDate: '2024-03-20' },
-      { id: '8', name: 'رنا العبادي', username: 'rana.a', email: 'rana@auditpro.jo', position: 'مديرة مكاتب', role: 'مشاهد', status: 'انهاء خدمات', joinDate: '2022-12-15' },
-    ];
-  });
-
-  // حفظ التغييرات في localStorage تلقائياً
-  useEffect(() => {
-    localStorage.setItem('audit_pro_users_list', JSON.stringify(users));
-  }, [users]);
-
   // دمج البحث المحلي والعالمي
   const activeSearchQuery = localSearchQuery || externalSearchQuery;
 
@@ -158,7 +139,6 @@ const UserManagement: React.FC<UserManagementProps> = ({ positions, externalSear
         </div>
         
         <div className="flex flex-col sm:flex-row items-center gap-4 w-full lg:w-auto">
-          {/* خانة البحث السريع المضافة */}
           <div className="relative w-full sm:w-64">
             <Search className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400" size={16} />
             <input 
@@ -259,7 +239,6 @@ const UserManagement: React.FC<UserManagementProps> = ({ positions, externalSear
         </div>
       )}
 
-      {/* نافذة تأكيد الحذف المخصصة */}
       {userToDelete && (
         <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-black/60 backdrop-blur-md animate-in fade-in duration-200">
           <div className="bg-white rounded-[2rem] w-full max-w-sm shadow-2xl overflow-hidden p-8 text-center space-y-6">
@@ -288,7 +267,6 @@ const UserManagement: React.FC<UserManagementProps> = ({ positions, externalSear
         </div>
       )}
 
-      {/* View User Modal */}
       {viewingUser && (
         <div className="fixed inset-0 z-[120] flex items-center justify-center p-2 sm:p-4 bg-black/60 backdrop-blur-md animate-in fade-in duration-300">
           <div className="bg-white rounded-[2.5rem] w-full max-w-md shadow-2xl overflow-hidden flex flex-col">
@@ -337,7 +315,6 @@ const UserManagement: React.FC<UserManagementProps> = ({ positions, externalSear
         </div>
       )}
 
-      {/* Change Status Modal */}
       {selectedUserForAction && (
         <div className="fixed inset-0 z-[120] flex items-center justify-center p-2 sm:p-4 bg-black/60 backdrop-blur-md animate-in fade-in duration-200">
           <div className="bg-white rounded-[2rem] w-full max-w-sm shadow-2xl overflow-hidden flex flex-col">
@@ -382,7 +359,6 @@ const UserManagement: React.FC<UserManagementProps> = ({ positions, externalSear
         </div>
       )}
 
-      {/* Add/Edit Modal */}
       {showFormModal && (
         <div className="fixed inset-0 z-[110] flex items-center justify-center p-2 sm:p-4 bg-black/40 backdrop-blur-md animate-in fade-in duration-200">
           <div className="bg-white rounded-[2rem] sm:rounded-[2.5rem] w-full max-w-lg shadow-2xl overflow-hidden flex flex-col max-h-[95vh]">

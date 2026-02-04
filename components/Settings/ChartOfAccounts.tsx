@@ -15,6 +15,7 @@ const PILLAR_COLORS: Record<AccountType, string> = {
   Equity: 'emerald',
   Revenue: 'amber',
   Expenses: 'purple',
+  COGS: 'cyan',
 };
 
 const ChartOfAccounts: React.FC<ChartOfAccountsProps> = ({ accounts, onUpdate, userRole }) => {
@@ -23,28 +24,33 @@ const ChartOfAccounts: React.FC<ChartOfAccountsProps> = ({ accounts, onUpdate, u
   const [editingAccount, setEditingAccount] = useState<Account | null>(null);
   const [selectedParentId, setSelectedParentId] = useState<string | null>(null);
 
-  // التحقق من صلاحية الأدوار
+  // التحقق من صلاحية الأدوار والقواعد الجديدة
   const isAdmin = userRole === 'مدير نظام';
   const isAuditor = userRole === 'مدقق';
 
   // دالة للتحقق هل يمكن للمستخدم الحالي الإضافة تحت هذا الأب
+  // القاعدة الجديدة: الشجرة بحد أقصى 4 مستويات (0, 1, 2, 3)
+  // يسمح بالإضافة فقط تحت المستوى الثالث (level 2) لإنتاج المستوى الرابع (level 3)
   const canAddUnder = (parentId: string | null) => {
-    if (isAdmin) return true;
-    if (isAuditor) {
-      if (!parentId) return false; 
-      const parent = accounts.find(a => a.id === parentId);
-      // يسمح للمدقق بالإضافة إذا كان الأب من المستوى الثالث (level 2) أو أكثر (ليصبح الابن مستوى رابع أو خامس)
-      return parent && parent.level >= 2;
-    }
-    return false;
+    if (!parentId) return isAdmin; // فقط المدير يضيف Pillars جديدة (مستوى 1)
+    const parent = accounts.find(a => a.id === parentId);
+    if (!parent) return false;
+    
+    // الحد الأقصى للمستوى هو 4 (يعني level 3 في الكود)
+    // لذا يمكن الإضافة فقط إذا كان الأب في مستوى أقل من 3
+    // وحسب طلب المستخدم السابق: الإضافة مسموحة فقط تحت المستويين الثالث والرابع
+    // ولكن مع الحد من المستويات لـ 4، فإن الإضافة تحت المستوى 4 غير ممكنة.
+    // إذن نسمح بالإضافة تحت المستوى 3 (level 2) فقط للوصول للمستوى 4.
+    return parent.level === 2;
   };
 
   // دالة للتحقق هل يمكن للمستخدم التعديل أو الحذف لهذا الحساب
+  // القاعدة السابقة: لا يستطيع اي مستخدم ان يحذف او يعدل على المستويات من 1 الى 4
   const canModify = (account: Account) => {
-    if (isAdmin) return true;
-    // لا يسمح للمدقق بالتعديل/الحذف إلا للمستوى الخامس (level 4)
-    if (isAuditor && account.level >= 4) return true;
-    return false;
+    // المستويات 0، 1، 2، 3 محمية بالكامل (تمثل كافة المستويات الأربعة المسموحة حالياً)
+    // إذا كان الحساب من حسابات النظام (isLocked) أو ضمن المستويات الأربعة الأولى
+    if (account.level <= 3) return false;
+    return isAdmin || isAuditor;
   };
 
   const [formData, setFormData] = useState({
@@ -110,7 +116,7 @@ const ChartOfAccounts: React.FC<ChartOfAccountsProps> = ({ accounts, onUpdate, u
   };
 
   const handleOpenEdit = (account: Account) => {
-    if (account.isLocked || !canModify(account)) return;
+    if (!canModify(account)) return;
     setEditingAccount(account);
     setSelectedParentId(account.parentId);
     setFormData({
@@ -125,7 +131,6 @@ const ChartOfAccounts: React.FC<ChartOfAccountsProps> = ({ accounts, onUpdate, u
     e.preventDefault();
     if (!formData.name) return;
     
-    // تحقق إضافي للحماية عند الحفظ
     if (editingAccount) {
       if (!canModify(editingAccount)) return;
       const updated = accounts.map(a => 
@@ -157,7 +162,7 @@ const ChartOfAccounts: React.FC<ChartOfAccountsProps> = ({ accounts, onUpdate, u
 
   const handleDelete = (id: string) => {
     const account = accounts.find(a => a.id === id);
-    if (!account || !canModify(account) || account.isLocked) return;
+    if (!account || !canModify(account)) return;
 
     const hasChildren = accounts.some(a => a.parentId === id);
     const message = hasChildren 
@@ -188,6 +193,7 @@ const ChartOfAccounts: React.FC<ChartOfAccountsProps> = ({ accounts, onUpdate, u
       const color = PILLAR_COLORS[account.type];
       const canAddHere = canAddUnder(account.id);
       const canModifyHere = canModify(account);
+      const isProtected = account.level <= 3;
 
       return (
         <div key={account.id} className="select-none">
@@ -218,8 +224,8 @@ const ChartOfAccounts: React.FC<ChartOfAccountsProps> = ({ accounts, onUpdate, u
               <span className={`text-xs sm:text-sm font-bold truncate ${account.level === 0 ? 'text-gray-900 sm:text-base' : 'text-gray-700'}`}>
                 {account.name}
               </span>
-              {account.isLocked && (
-                <span title="حساب أساسي محمي" className="mr-2 flex-shrink-0">
+              {isProtected && (
+                <span title="حساب نظام محمي" className="mr-2 flex-shrink-0">
                   <ShieldCheck size={14} className="text-blue-500 opacity-60" />
                 </span>
               )}
@@ -237,7 +243,7 @@ const ChartOfAccounts: React.FC<ChartOfAccountsProps> = ({ accounts, onUpdate, u
                   <Plus size={16} />
                 </button>
               )}
-              {!account.isLocked && canModifyHere && (
+              {canModifyHere && (
                 <>
                   <button 
                     onClick={() => handleOpenEdit(account)}
@@ -275,16 +281,12 @@ const ChartOfAccounts: React.FC<ChartOfAccountsProps> = ({ accounts, onUpdate, u
           <h3 className="text-2xl font-black text-gray-800">شجرة الحسابات (COA)</h3>
           <p className="text-gray-500 text-sm mt-1 font-medium">الهيكل المالي لجميع الحسابات والبنود المحاسبية</p>
           <div className="flex flex-col gap-1 mt-2">
-            {isAdmin ? (
-              <p className="text-blue-600 text-[10px] font-black">صلاحيات كاملة لمدير النظام</p>
-            ) : isAuditor ? (
-              <div className="space-y-0.5">
-                <p className="text-amber-600 text-[10px] font-black">صلاحية المدقق: الإضافة من المستوى الرابع فما فوق.</p>
-                <p className="text-red-600 text-[10px] font-black underline">التعديل والحذف متاح فقط للمستوى الخامس.</p>
-              </div>
-            ) : (
-              <p className="text-red-600 text-[10px] font-black">عذراً، التعديل والإضافة غير متاحة لصلاحية المشاهد</p>
-            )}
+            <p className="text-blue-600 text-[10px] font-black uppercase tracking-wider">قواعد النظام:</p>
+            <ul className="text-[10px] font-bold space-y-0.5 list-disc list-inside">
+              <li className="text-slate-500">الشجرة مقتصرة على 4 مستويات فقط.</li>
+              <li className="text-slate-500">المستويات من 1 إلى 4 محمية من التعديل والحذف لأي مستخدم.</li>
+              <li className="text-blue-600">يسمح بالإضافة فقط تحت المستوى الثالث (1.1.1) لإنشاء المستوى الرابع (1.1.1.01).</li>
+            </ul>
           </div>
         </div>
         
@@ -295,7 +297,7 @@ const ChartOfAccounts: React.FC<ChartOfAccountsProps> = ({ accounts, onUpdate, u
             <span className="text-[10px] font-black text-gray-400 uppercase tracking-tighter">عرض المستويات</span>
           </div>
           <div className="flex items-center gap-1">
-            {[1, 2, 3, 4, 5].map((lvl) => (
+            {[1, 2, 3, 4].map((lvl) => (
               <button
                 key={lvl}
                 onClick={() => expandToLevel(lvl)}
@@ -392,7 +394,7 @@ const ChartOfAccounts: React.FC<ChartOfAccountsProps> = ({ accounts, onUpdate, u
                           : 'bg-white border-gray-100 text-gray-500 hover:border-blue-200'
                         }`}
                       >
-                        {type === 'Assets' ? 'أصول' : type === 'Liabilities' ? 'التزامات' : type === 'Equity' ? 'حقوق ملكية' : type === 'Revenue' ? 'إيرادات' : 'مصاريف'}
+                        {type === 'Assets' ? 'أصول' : type === 'Liabilities' ? 'التزامات' : type === 'Equity' ? 'حقوق ملكية' : type === 'Revenue' ? 'إيرادات' : type === 'Expenses' ? 'مصاريف' : 'تكلفة بضاعة'}
                       </button>
                     ))}
                   </div>

@@ -83,7 +83,7 @@ export interface Company {
 }
 
 // Chart of Accounts Types
-export type AccountType = 'Assets' | 'Liabilities' | 'Equity' | 'Revenue' | 'Expenses';
+export type AccountType = 'Assets' | 'Liabilities' | 'Equity' | 'Revenue' | 'Expenses' | 'COGS';
 
 export interface Account {
   id: string;
