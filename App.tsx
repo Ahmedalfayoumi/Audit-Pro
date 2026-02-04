@@ -12,7 +12,7 @@ import FinancialYearManagement from './components/Settings/FinancialYearManageme
 import AuditFileManagement from './components/Audit/AuditFileManagement';
 import FirmSettingsComponent from './components/Settings/FirmSettings';
 import ChartOfAccounts from './components/Settings/ChartOfAccounts';
-import { Company, CompanyType, Country, Account, Position, Department } from './types';
+import { Company, CompanyType, Country, Account, Position, Department, Currency } from './types';
 
 interface NavItem {
   id: string;
@@ -36,7 +36,7 @@ interface User {
 const App: React.FC = () => {
   const [activeTab, setActiveTab] = useState<string>('company');
   const [activeSubTab, setActiveSubTab] = useState<string | null>(null);
-  const [isSidebarOpen, setIsSidebarOpen] = useState(true); // Default to visible
+  const [isSidebarOpen, setIsSidebarOpen] = useState(true); 
   const [viewType, setViewType] = useState<'list' | 'grid'>('list'); 
   const [expandedMenus, setExpandedMenus] = useState<Set<string>>(new Set<string>());
   const [showForm, setShowForm] = useState(false);
@@ -45,13 +45,6 @@ const App: React.FC = () => {
   const [showAuditModal, setShowAuditModal] = useState(false);
   
   const [userRole] = useState<'مدير نظام' | 'مدقق' | 'مشاهد'>('مدير نظام');
-
-  // Adjust sidebar state based on screen size on initial load
-  useEffect(() => {
-    if (window.innerWidth < 1024) {
-      setIsSidebarOpen(false);
-    }
-  }, []);
 
   // --- Persistent State Management ---
   const [financialYears, setFinancialYears] = useState<string[]>(() => {
@@ -65,6 +58,16 @@ const App: React.FC = () => {
     return [
       { id: '1', name: 'الأردن', code: 'JO', cities: [{ id: '101', name: 'عمان' }, { id: '102', name: 'إربد' }] },
       { id: '2', name: 'السعودية', code: 'SA', cities: [{ id: '201', name: 'الرياض' }] },
+    ];
+  });
+
+  const [currencies, setCurrencies] = useState<Currency[]>(() => {
+    const saved = localStorage.getItem('audit_pro_currencies');
+    if (saved) return JSON.parse(saved);
+    return [
+      { id: '1', name: 'دينار أردني', code: 'JOD', symbol: 'د.أ', exchangeRate: 1 },
+      { id: '2', name: 'دولار أمريكي', code: 'USD', symbol: '$', exchangeRate: 0.71 },
+      { id: '3', name: 'يورو', code: 'EUR', symbol: '€', exchangeRate: 0.77 },
     ];
   });
 
@@ -127,8 +130,6 @@ const App: React.FC = () => {
   const [accounts, setAccounts] = useState<Account[]>(() => {
     const saved = localStorage.getItem('audit_pro_accounts');
     if (saved && JSON.parse(saved).length > 10) return JSON.parse(saved);
-    
-    // Default 4-level Chart of Accounts structure
     return [
       { id: 'a1', code: '1', name: 'الموجودات', type: 'Assets', parentId: null, level: 0, isLocked: true, isCategory: true },
         { id: 'a11', code: '11', name: 'الموجودات المتداولة', type: 'Assets', parentId: 'a1', level: 1, isLocked: true, isCategory: true },
@@ -145,7 +146,7 @@ const App: React.FC = () => {
             { id: 'a2111', code: '21101', name: 'ذمم الموردين', type: 'Liabilities', parentId: 'a211', level: 3, isLocked: true, isCategory: true },
       { id: 'a3', code: '3', name: 'حقوق الملكية', type: 'Equity', parentId: null, level: 0, isLocked: true, isCategory: true },
         { id: 'a31', code: '31', name: 'رأس المال', type: 'Equity', parentId: 'a3', level: 1, isLocked: true, isCategory: true },
-          { id: 'a311', code: '311', name: 'رأس المال', type: 'Equity', parentId: 'a31', level: 2, isLocked: true, isCategory: true },
+          { id: 'a311', code: '311', name: 'رأس المال', type: 'Equity', parentId: 'a311', level: 2, isLocked: true, isCategory: true },
             { id: 'a3111', code: '31101', name: 'رأس المال', type: 'Equity', parentId: 'a311', level: 3, isLocked: true, isCategory: true },
       { id: 'a4', code: '4', name: 'المصاريف', type: 'Expenses', parentId: null, level: 0, isLocked: true, isCategory: true },
       { id: 'a5', code: '5', name: 'الإيرادات', type: 'Revenue', parentId: null, level: 0, isLocked: true, isCategory: true },
@@ -156,25 +157,9 @@ const App: React.FC = () => {
   const [auditFiles, setAuditFiles] = useState<any[]>(() => {
     const saved = localStorage.getItem('audit_pro_files');
     if (saved && JSON.parse(saved).length > 0) return JSON.parse(saved);
-    
-    // Default test audit files
     return [
-      {
-        id: 'af1',
-        companyId: 'c1',
-        companyName: 'مجموعة التقنية الحديثة',
-        financialYear: '2024',
-        uploadDate: '2024-03-15',
-        status: 'Pending'
-      },
-      {
-        id: 'af2',
-        companyId: 'c2',
-        companyName: 'شركة الرواد للصناعات الغذائية',
-        financialYear: '2023',
-        uploadDate: '2024-02-10',
-        status: 'Completed'
-      }
+      { id: 'af1', companyId: 'c1', companyName: 'مجموعة التقنية الحديثة', financialYear: '2024', uploadDate: '2024-03-15', status: 'Pending' },
+      { id: 'af2', companyId: 'c2', companyName: 'شركة الرواد للصناعات الغذائية', financialYear: '2023', uploadDate: '2024-02-10', status: 'Completed' }
     ];
   });
 
@@ -191,9 +176,17 @@ const App: React.FC = () => {
       logo: null,
       stamp: null,
       primaryColor: '#2563eb',
-      secondaryColor: '#0b1424'
+      secondaryColor: '#0b1424',
+      defaultCurrencyId: '1'
     };
   });
+
+  // Effect to ensure default currency has rate of 1
+  useEffect(() => {
+    setCurrencies(prev => prev.map(c => 
+      c.id === firmSettings.defaultCurrencyId ? { ...c, exchangeRate: 1 } : c
+    ));
+  }, [firmSettings.defaultCurrencyId]);
 
   useEffect(() => {
     const root = document.documentElement;
@@ -222,6 +215,7 @@ const App: React.FC = () => {
   useEffect(() => localStorage.setItem('audit_pro_files', JSON.stringify(auditFiles)), [auditFiles]);
   useEffect(() => localStorage.setItem('audit_pro_firm_settings', JSON.stringify(firmSettings)), [firmSettings]);
   useEffect(() => localStorage.setItem('audit_pro_countries_list', JSON.stringify(countries)), [countries]);
+  useEffect(() => localStorage.setItem('audit_pro_currencies', JSON.stringify(currencies)), [currencies]);
   useEffect(() => localStorage.setItem('audit_pro_accounts', JSON.stringify(accounts)), [accounts]);
   useEffect(() => localStorage.setItem('audit_pro_positions', JSON.stringify(positions)), [positions]);
   useEffect(() => localStorage.setItem('audit_pro_departments', JSON.stringify(departments)), [departments]);
@@ -286,7 +280,6 @@ const App: React.FC = () => {
                 setActiveSubTab(null);
                 setSearchQuery('');
                 if (level > 0) setActiveSubTab(item.id);
-                if (window.innerWidth < 1024) setIsSidebarOpen(false); // Auto-close on small screens
               }
             }}
             className={`w-full flex items-center rounded-xl transition-all duration-200 ${
@@ -320,17 +313,10 @@ const App: React.FC = () => {
 
   return (
     <div className="flex h-screen bg-gray-50 overflow-hidden font-sans text-right" dir="rtl">
-      {/* Overlay for mobile sidebar only when open */}
-      <div 
-        className={`fixed inset-0 bg-black/50 z-[60] lg:hidden backdrop-blur-sm transition-opacity duration-300 ${isSidebarOpen ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}
-        onClick={() => setIsSidebarOpen(false)}
-      />
-
-      {/* Sidebar - Toggleable on all screens */}
       <aside 
         style={{ backgroundColor: 'var(--secondary-color)' }}
-        className={`fixed inset-y-0 right-0 z-[70] transition-all duration-300 transform lg:static lg:translate-x-0 flex flex-col border-l border-white/5 ${
-          isSidebarOpen ? 'w-64 translate-x-0 translate-x-0' : 'w-0 lg:w-0 translate-x-full lg:translate-x-0 overflow-hidden opacity-0'
+        className={`h-full flex flex-col border-l border-white/5 transition-all duration-300 relative z-[70] ${
+          isSidebarOpen ? 'w-64 min-w-[256px] opacity-100' : 'w-0 min-w-0 opacity-0 overflow-hidden'
         }`}
       >
         <div className="p-6 flex items-center justify-between border-b border-white/5 min-w-[256px]">
@@ -364,7 +350,7 @@ const App: React.FC = () => {
         <header className="h-16 bg-white border-b flex items-center justify-between px-4 lg:px-8 shadow-sm z-50">
           <div className="flex items-center gap-4">
             <button 
-              className="p-2 text-gray-600 hover:bg-gray-100 rounded-xl transition-all active:scale-90"
+              className="p-2 text-gray-600 hover:bg-gray-100 rounded-xl transition-transform active:scale-95"
               onClick={() => setIsSidebarOpen(!isSidebarOpen)}
               title={isSidebarOpen ? "إخفاء القائمة" : "إظهار القائمة"}
             >
@@ -409,9 +395,19 @@ const App: React.FC = () => {
 
         <div className="flex-1 overflow-y-auto p-4 lg:p-8 bg-[#f8fafc] custom-scrollbar">
           {activeTab === 'company' ? (
-            showForm ? <CompanyForm onSave={handleSaveCompany} onCancel={() => setShowForm(false)} initialData={editingCompany} countries={countries} /> : <CompanyList companies={companies} view={viewType} onEdit={(c) => { setEditingCompany(c); setShowForm(true); }} searchQuery={searchQuery} />
+            showForm ? (
+              <CompanyForm 
+                onSave={handleSaveCompany} 
+                onCancel={() => setShowForm(false)} 
+                initialData={editingCompany} 
+                countries={countries} 
+                currencies={currencies}
+              />
+            ) : (
+              <CompanyList companies={companies} view={viewType} onEdit={(c) => { setEditingCompany(c); setShowForm(true); }} searchQuery={searchQuery} />
+            )
           ) : activeSubTab === 'firm' ? (
-            <FirmSettingsComponent settings={firmSettings} onSave={setFirmSettings} countries={countries} />
+            <FirmSettingsComponent settings={firmSettings} onSave={setFirmSettings} countries={countries} currencies={currencies} />
           ) : activeSubTab === 'users' ? (
             <UserManagement positions={positions} externalSearchQuery={searchQuery} users={users} setUsers={setUsers} />
           ) : activeSubTab === 'coa' || activeTab === 'coa' ? (
@@ -419,7 +415,7 @@ const App: React.FC = () => {
           ) : activeSubTab === 'countries' ? (
             <CountryManagement countries={countries} onUpdate={setCountries} companies={companies} />
           ) : activeSubTab === 'currencies' ? (
-            <CurrencyManagement companies={companies} />
+            <CurrencyManagement companies={companies} currencies={currencies} onUpdate={setCurrencies} defaultCurrencyId={firmSettings.defaultCurrencyId} />
           ) : activeSubTab === 'departments' ? (
             <DepartmentManagement departments={departments} onUpdate={setDepartments} positions={positions} />
           ) : activeSubTab === 'positions' ? (

@@ -1,7 +1,7 @@
 
 import React, { useState, useRef } from 'react';
-import { Building2, Save, Upload, MapPin, User, FileText, CheckCircle2, Image as ImageIcon, Trash2, ShieldCheck, ChevronDown, Palette, Eye } from 'lucide-react';
-import { Country } from '../../types';
+import { Building2, Save, Upload, MapPin, User, FileText, CheckCircle2, Image as ImageIcon, Trash2, ShieldCheck, ChevronDown, Palette, Eye, Coins } from 'lucide-react';
+import { Country, Currency } from '../../types';
 
 interface FirmSettings {
   name: string;
@@ -20,15 +20,17 @@ interface FirmSettings {
   stamp: string | null;
   primaryColor: string;
   secondaryColor: string;
+  defaultCurrencyId: string;
 }
 
 interface FirmSettingsProps {
   settings: FirmSettings;
   onSave: (settings: FirmSettings) => void;
   countries: Country[];
+  currencies: Currency[];
 }
 
-const FirmSettingsComponent: React.FC<FirmSettingsProps> = ({ settings, onSave, countries }) => {
+const FirmSettingsComponent: React.FC<FirmSettingsProps> = ({ settings, onSave, countries, currencies }) => {
   const [formData, setFormData] = useState<FirmSettings>(settings);
   const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'success'>('idle');
   
@@ -101,7 +103,6 @@ const FirmSettingsComponent: React.FC<FirmSettingsProps> = ({ settings, onSave, 
       </div>
 
       <form onSubmit={handleSubmit} className="space-y-8 pb-20">
-        {/* Section: Visual Identity / Theme */}
         <section className="bg-white rounded-[2.5rem] p-8 shadow-sm border border-gray-100 overflow-hidden relative">
           <div className="flex items-center gap-3 mb-8 text-indigo-600">
             <Palette size={24} />
@@ -147,7 +148,6 @@ const FirmSettingsComponent: React.FC<FirmSettingsProps> = ({ settings, onSave, 
               </div>
             </div>
 
-            {/* Theme Live Preview Card */}
             <div className="bg-gray-100/50 p-6 rounded-[2rem] border border-gray-100 space-y-4">
               <div className="flex items-center gap-2 mb-2 text-gray-400">
                 <Eye size={16} />
@@ -181,16 +181,15 @@ const FirmSettingsComponent: React.FC<FirmSettingsProps> = ({ settings, onSave, 
           </div>
         </section>
 
-        {/* Section: Official Info */}
         <section className="bg-white rounded-[2.5rem] p-8 shadow-sm border border-gray-100 relative overflow-hidden">
           <div className="absolute top-0 right-0 w-2 h-full" style={{ backgroundColor: formData.primaryColor }}></div>
           <div className="flex items-center gap-3 mb-8">
             <Building2 size={24} style={{ color: formData.primaryColor }} />
-            <h4 className="text-xl font-black">المعلومات الرسمية</h4>
+            <h4 className="text-xl font-black">المعلومات الرسمية والمالية</h4>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            <div className="space-y-1.5">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+            <div className="space-y-1.5 md:col-span-2">
               <label className="text-xs font-black text-gray-500">اسم المكتب / الشركة</label>
               <input name="name" value={formData.name} onChange={handleInputChange} className="w-full p-3.5 bg-gray-50 border border-gray-200 rounded-2xl focus:ring-2 theme-focus-ring outline-none font-bold" />
             </div>
@@ -202,10 +201,27 @@ const FirmSettingsComponent: React.FC<FirmSettingsProps> = ({ settings, onSave, 
               <label className="text-xs font-black text-gray-500">رقم إجازة التدقيق</label>
               <input name="licenseNumber" value={formData.licenseNumber} onChange={handleInputChange} className="w-full p-3.5 bg-gray-50 border border-gray-200 rounded-2xl focus:ring-2 theme-focus-ring outline-none font-bold" />
             </div>
+            
+            <div className="space-y-1.5 md:col-span-2">
+              <label className="text-xs font-black text-gray-500 flex items-center gap-2"><Coins size={14} className="text-amber-500" /> العملة الافتراضية للنظام</label>
+              <div className="relative">
+                <select 
+                  name="defaultCurrencyId" 
+                  value={formData.defaultCurrencyId} 
+                  onChange={handleInputChange} 
+                  className="w-full p-3.5 bg-gray-50 border border-gray-200 rounded-2xl focus:ring-2 theme-focus-ring outline-none font-bold appearance-none pr-10"
+                >
+                  {currencies.map(curr => (
+                    <option key={curr.id} value={curr.id}>{curr.name} ({curr.code})</option>
+                  ))}
+                </select>
+                <ChevronDown className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" size={18} />
+              </div>
+              <p className="text-[10px] text-gray-400 font-bold mr-1">هذه العملة ستعتبر الأساس (قيمة الصرف = 1) لجميع العملات الأخرى</p>
+            </div>
           </div>
         </section>
 
-        {/* Section: Logo & Stamp */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
           <div className="bg-white rounded-[2.5rem] p-8 shadow-sm border border-gray-100 flex flex-col items-center text-center">
             <div className="w-20 h-20 rounded-3xl bg-blue-50 flex items-center justify-center mb-4" style={{ color: formData.primaryColor }}>
@@ -254,7 +270,6 @@ const FirmSettingsComponent: React.FC<FirmSettingsProps> = ({ settings, onSave, 
           </div>
         </div>
 
-        {/* Section: Address (Expanded) */}
         <section className="bg-white rounded-[2.5rem] p-8 shadow-sm border border-gray-100">
           <div className="flex items-center gap-3 mb-8 text-red-600">
             <MapPin size={24} />
@@ -298,7 +313,6 @@ const FirmSettingsComponent: React.FC<FirmSettingsProps> = ({ settings, onSave, 
           </div>
         </section>
 
-        {/* Floating Save Button */}
         <div className="fixed bottom-8 left-8 z-20">
           <button 
             type="submit"

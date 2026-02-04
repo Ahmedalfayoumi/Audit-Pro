@@ -35,6 +35,14 @@ export interface Country {
   cities: City[];
 }
 
+export interface Currency {
+  id: string;
+  name: string;
+  code: string;
+  symbol: string;
+  exchangeRate: number;
+}
+
 export interface Department {
   id: string;
   name: string;
