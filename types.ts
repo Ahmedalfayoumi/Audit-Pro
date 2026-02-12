@@ -103,3 +103,36 @@ export interface Account {
   isLocked: boolean;
   isCategory: boolean;
 }
+
+export interface TbAccountData {
+  name: string;
+  openingDebit: number;
+  openingCredit: number;
+  periodDebit: number;
+  periodCredit: number;
+}
+
+export interface MaterialityData {
+  riskLevel: number;
+  otherBasis?: number;
+  otherBasisReason?: string;
+  notes?: string;
+}
+
+export interface AuditFile {
+  id: string;
+  companyId: string;
+  companyName: string;
+  financialYear: string;
+  appointmentLetterFile?: string;
+  registrationFile?: string;
+  licenseFile?: string;
+  trialBalanceFile?: string;
+  lastYearFinancialsFile?: string;
+  uploadDate: string;
+  status: 'Pending' | 'Completed' | 'Review';
+  accounts: Account[];
+  tbMappings: Record<string, string>;
+  tbAccounts: TbAccountData[];
+  materialityData?: MaterialityData;
+}
