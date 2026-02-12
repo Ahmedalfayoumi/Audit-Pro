@@ -3,7 +3,8 @@ import React, { useState, useMemo, useRef, useEffect } from 'react';
 import { 
   ArrowRight, Search, Plus, Save, ChevronDown, CheckCircle2, 
   AlertCircle, FileSpreadsheet, Workflow, X, Layers,
-  CheckCircle, ShieldCheck, Folder, FileText, ChevronUp, Lock, Download, Compass, Menu
+  CheckCircle, ShieldCheck, Folder, FileText, ChevronUp, Lock, Download, Compass, Menu,
+  Info, AlertTriangle
 } from 'lucide-react';
 import { AuditFile, Account, AccountType, TbAccountData } from '../../types';
 import * as XLSX from 'xlsx';
@@ -58,6 +59,20 @@ const AccountMappingView: React.FC<AccountMappingViewProps> = ({ file, onBack, o
     return file.tbAccounts.filter(acc => acc.name.toLowerCase().includes(query));
   }, [file.tbAccounts, searchQuery]);
 
+  // حساب عدد الحسابات المربوطة بشكل أكثر مرونة مع مراعاة المسافات الزائدة
+  const mappingStats = useMemo(() => {
+    const total = file.tbAccounts.length;
+    const mapped = file.tbAccounts.filter(acc => {
+      const originalName = acc.name;
+      const trimmedName = acc.name.trim();
+      // تحقق مما إذا كان الاسم الأصلي أو الاسم بعد التقليم مربوطاً في tbMappings
+      return !!file.tbMappings[originalName] || !!file.tbMappings[trimmedName];
+    }).length;
+    return { total, mapped, remaining: total - mapped };
+  }, [file.tbAccounts, file.tbMappings]);
+
+  const isAllMapped = mappingStats.remaining === 0 && mappingStats.total > 0;
+
   const totals = useMemo(() => {
     return file.tbAccounts.reduce((acc, curr) => {
       const openingBal = curr.openingDebit - curr.openingCredit;
@@ -84,10 +99,6 @@ const AccountMappingView: React.FC<AccountMappingViewProps> = ({ file, onBack, o
     });
   }, [file.tbAccounts]);
 
-  const isAllMapped = useMemo(() => {
-    return file.tbAccounts.length > 0 && file.tbAccounts.every(acc => !!file.tbMappings[acc.name]);
-  }, [file.tbAccounts, file.tbMappings]);
-
   const availableCoaAccounts = useMemo(() => {
     const baseList = file.accounts.filter(acc => acc.level === 3); 
     if (!coaSearchQuery.trim()) return baseList;
@@ -100,7 +111,13 @@ const AccountMappingView: React.FC<AccountMappingViewProps> = ({ file, onBack, o
 
   const saveMapping = (tbAccName: string, coaId: string) => {
     if (isApproved) return;
-    const updated = { ...file, tbMappings: { ...file.tbMappings, [tbAccName]: coaId } };
+    // تخزين الربط باستخدام الاسم الأصلي والاسم المقلم لضمان المطابقة
+    const updatedMappings = { 
+      ...file.tbMappings, 
+      [tbAccName]: coaId,
+      [tbAccName.trim()]: coaId 
+    };
+    const updated = { ...file, tbMappings: updatedMappings };
     onUpdateFile(updated);
     setActiveDropdown(null);
     setCoaSearchQuery('');
@@ -108,11 +125,12 @@ const AccountMappingView: React.FC<AccountMappingViewProps> = ({ file, onBack, o
 
   const handleApproveMapping = () => {
     if (!isAllMapped) {
-      alert("يرجى تربيط كافة الحسابات قبل الاعتماد");
+      alert(`عذراً، لا يمكن الاعتماد حالياً. يوجد ${mappingStats.remaining.toLocaleString('en-US')} حساباً لم يتم تربيطها بعد. يرجى إكمال التربيط لكافة البنود للتأكد من دقة البيانات.`);
       return;
     }
-    if (confirm("هل أنت متأكد من اعتماد التربيط؟ سيتم قفل الحسابات ولا يمكن التعديل عليها لاحقاً إلا من قبل المدير.")) {
+    if (confirm("هل أنت متأكد من اعتماد التربيط؟ سيتم قفل الحسابات ولن تتمكن من تعديل الربط لاحقاً.")) {
       onUpdateFile({ ...file, status: 'Completed' });
+      alert("تم اعتماد التربيط بنجاح. تم قفل الملف الآن.");
     }
   };
 
@@ -134,7 +152,7 @@ const AccountMappingView: React.FC<AccountMappingViewProps> = ({ file, onBack, o
 
   const handleExportExcel = () => {
     const exportData = file.tbAccounts.map(tbAcc => {
-      const mappedId = file.tbMappings[tbAcc.name];
+      const mappedId = file.tbMappings[tbAcc.name] || file.tbMappings[tbAcc.name.trim()];
       const crumbs = mappedId ? getAccountBreadcrumbs(mappedId) : [];
       
       const openingBal = tbAcc.openingDebit - tbAcc.openingCredit;
@@ -203,7 +221,7 @@ const AccountMappingView: React.FC<AccountMappingViewProps> = ({ file, onBack, o
     setAddAccountData({ ...addAccountData, name: '' });
   };
 
-  const formatNum = (num: number) => num.toLocaleString(undefined, { minimumFractionDigits: 3, maximumFractionDigits: 3 });
+  const formatNum = (num: number) => num.toLocaleString('en-US', { minimumFractionDigits: 3, maximumFractionDigits: 3 });
 
   if (activeView === 'materiality') {
     return <MaterialityView file={file} onUpdateFile={onUpdateFile} onBack={() => setActiveView('mapping')} />;
@@ -219,14 +237,19 @@ const AccountMappingView: React.FC<AccountMappingViewProps> = ({ file, onBack, o
           <div className="min-w-0">
             <div className="flex items-center gap-2 truncate">
               <h2 className="text-sm sm:text-lg font-black text-gray-800 truncate">تربيط ميزان المراجعة</h2>
-              {isApproved && <span className="hidden sm:flex items-center gap-1 px-2 py-0.5 bg-green-100 text-green-700 rounded-lg text-[10px] font-black whitespace-nowrap"><Lock size={12} /> معتمد ومقفل</span>}
+              {isApproved && <span className="flex items-center gap-1 px-2 py-0.5 bg-green-100 text-green-700 rounded-lg text-[10px] font-black whitespace-nowrap"><Lock size={12} /> معتمد ومقفل</span>}
+              {!isApproved && (
+                <div className={`flex items-center gap-1 px-2 py-0.5 rounded-lg text-[10px] font-black whitespace-nowrap ${isAllMapped ? 'bg-blue-100 text-blue-700' : 'bg-amber-100 text-amber-700'}`}>
+                   {isAllMapped ? <CheckCircle2 size={12}/> : <AlertTriangle size={12}/>}
+                   إنجاز التربيط: {mappingStats.mapped.toLocaleString('en-US')} / {mappingStats.total.toLocaleString('en-US')}
+                </div>
+              )}
             </div>
             <p className="text-[9px] sm:text-[10px] font-bold text-gray-400 truncate">{file.companyName} - {file.financialYear}</p>
           </div>
         </div>
 
         <div className="flex items-center gap-1 sm:gap-3">
-          {/* Action toggle for mobile */}
           <div className="lg:hidden flex items-center">
              <button 
                onClick={() => setIsActionsExpanded(!isActionsExpanded)}
@@ -246,13 +269,13 @@ const AccountMappingView: React.FC<AccountMappingViewProps> = ({ file, onBack, o
             </div>
 
             <button onClick={handleExportExcel} className="w-full lg:w-auto flex items-center justify-center gap-2 bg-slate-100 text-slate-700 px-4 py-2 rounded-xl text-xs font-black hover:bg-slate-200 transition-all active:scale-95">
-              <Download size={16} /> <span className="lg:hidden xl:inline">الميزان المربوط</span>
+              <Download size={16} /> <span className="lg:hidden xl:inline">تصدير إكسل</span>
             </button>
 
             {isApproved && (
               <div className="relative w-full lg:w-auto" ref={planningMenuRef}>
                 <button 
-                  onClick={() => setShowPlanningMenu(!showPlanningMenu)}
+                  onClick={() => { setShowPlanningMenu(!showPlanningMenu); }}
                   className="w-full lg:w-auto flex items-center justify-center gap-2 bg-indigo-600 text-white px-5 py-2 rounded-xl text-xs font-black shadow-lg shadow-indigo-200 hover:bg-indigo-700 transition-all active:scale-95"
                 >
                   <Compass size={16} /> <span>التخطيط</span> <ChevronDown size={14} />
@@ -265,7 +288,6 @@ const AccountMappingView: React.FC<AccountMappingViewProps> = ({ file, onBack, o
                     >
                       <Layers size={16} className="text-indigo-500" /> الأهمية النسبية
                     </button>
-                    {/* Placeholder for more submenus */}
                     <button className="w-full text-right p-4 text-xs font-black text-slate-400 cursor-not-allowed flex items-center gap-3">
                       <Workflow size={16} /> تقييم المخاطر
                     </button>
@@ -274,15 +296,20 @@ const AccountMappingView: React.FC<AccountMappingViewProps> = ({ file, onBack, o
               </div>
             )}
 
-            {isAllMapped && !isApproved && (
-              <button onClick={handleApproveMapping} className="w-full lg:w-auto flex items-center justify-center gap-2 bg-green-600 text-white px-5 py-2 rounded-xl text-xs font-black shadow-lg shadow-green-200 hover:bg-green-700 transition-all active:scale-95">
+            {!isApproved && (
+              <button 
+                onClick={handleApproveMapping} 
+                className={`w-full lg:w-auto flex items-center justify-center gap-2 px-5 py-2 rounded-xl text-xs font-black shadow-lg transition-all active:scale-95 ${
+                  isAllMapped ? 'bg-green-600 text-white shadow-green-200 hover:bg-green-700' : 'bg-gray-400 text-white shadow-gray-200 hover:bg-gray-500'
+                }`}
+              >
                 <CheckCircle2 size={16} /> <span>اعتماد التربيط</span>
               </button>
             )}
 
             {isApproved && (
                <button onClick={handleUnlockMapping} className="w-full lg:w-auto flex items-center justify-center gap-2 bg-amber-500 text-white px-5 py-2 rounded-xl text-xs font-black shadow-lg shadow-amber-200 hover:bg-amber-600 transition-all active:scale-95">
-                  <span>إلغاء الاعتماد</span>
+                  <Lock size={14} /> <span>إلغاء الاعتماد</span>
                 </button>
             )}
 
@@ -293,9 +320,15 @@ const AccountMappingView: React.FC<AccountMappingViewProps> = ({ file, onBack, o
         </div>
       </header>
       
-      {/* ... Rest of the component remains the same ... */}
       <div className="flex-1 overflow-auto p-2 sm:p-4 custom-scrollbar">
         <div className="inline-block min-w-full align-middle">
+          {mappingStats.remaining > 0 && !isApproved && (
+            <div className="mb-4 p-3 bg-amber-50 border border-amber-100 rounded-2xl flex items-center gap-3 animate-pulse">
+               <AlertCircle className="text-amber-500" size={18} />
+               <p className="text-xs font-bold text-amber-800">تنبيه: متبقي {mappingStats.remaining.toLocaleString('en-US')} حساباً بدون تربيط. يجب إكمالها لتتمكن من الاعتماد.</p>
+            </div>
+          )}
+
           <div className="bg-white rounded-2xl sm:rounded-[2rem] shadow-sm border border-gray-100 overflow-hidden">
             <div className="overflow-x-auto">
               <table className="min-w-[1200px] w-full text-center border-separate border-spacing-0">
@@ -326,7 +359,8 @@ const AccountMappingView: React.FC<AccountMappingViewProps> = ({ file, onBack, o
                     const finalDebit = tbAcc.openingDebit + tbAcc.periodDebit;
                     const finalCredit = tbAcc.openingCredit + tbAcc.periodCredit;
                     const finalBal = finalDebit - finalCredit;
-                    const mappedId = file.tbMappings[tbAcc.name];
+                    // البحث في الربط مع مراعاة التقليم
+                    const mappedId = file.tbMappings[tbAcc.name] || file.tbMappings[tbAcc.name.trim()];
                     const mappedAcc = file.accounts.find(a => a.id === mappedId);
                     const isMapped = !!mappedId;
 
@@ -351,7 +385,7 @@ const AccountMappingView: React.FC<AccountMappingViewProps> = ({ file, onBack, o
                             {activeDropdown === tbAcc.name && !isApproved && (
                               <div ref={dropdownRef} className="absolute top-full mt-1 right-0 w-64 sm:w-80 bg-white rounded-2xl shadow-2xl border border-gray-100 z-[100] overflow-hidden flex flex-col" style={{ maxHeight: '400px' }}>
                                 <div className="p-3 border-b bg-gray-50/50">
-                                  <div className="relative"><Search className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400" size={14} /><input type="text" autoFocus placeholder="بحث..." value={coaSearchQuery} onChange={(e) => setCoaSearchQuery(e.target.value)} className="w-full pr-8 pl-3 py-2 bg-white border border-gray-200 rounded-xl text-[10px] font-bold outline-none focus:ring-2 focus:ring-blue-500/20" /></div>
+                                  <div className="relative"><Search className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400" /><input type="text" autoFocus placeholder="بحث..." value={coaSearchQuery} onChange={(e) => setCoaSearchQuery(e.target.value)} className="w-full pr-8 pl-3 py-2 bg-white border border-gray-200 rounded-xl text-[10px] font-bold outline-none focus:ring-2 focus:ring-blue-500/20" /></div>
                                   <p className="text-[8px] sm:text-[9px] font-bold text-blue-500 mt-2 text-center uppercase tracking-wider">حسابات المستوى الرابع فقط</p>
                                 </div>
                                 <div className="flex-1 overflow-y-auto custom-scrollbar p-1 max-h-[250px]">
@@ -396,7 +430,7 @@ const AccountMappingView: React.FC<AccountMappingViewProps> = ({ file, onBack, o
           </div>
         </div>
       </div>
-      {/* ... rest of mapping modals ... */}
+      
       {showAddModal && !isApproved && (
         <div className="fixed inset-0 z-[200] flex items-center justify-center p-2 sm:p-4 bg-black/60 backdrop-blur-md">
           <div className="bg-white rounded-[2rem] w-full max-w-md shadow-2xl overflow-hidden flex flex-col p-6 sm:p-8 text-right">
@@ -408,7 +442,7 @@ const AccountMappingView: React.FC<AccountMappingViewProps> = ({ file, onBack, o
                   {[1, 2, 3, 4].map(lvl => (
                     <label key={lvl} className="flex items-center gap-1.5 sm:gap-2 cursor-pointer">
                       <input type="radio" name="level" checked={addAccountData.level === lvl} onChange={() => setAddAccountData({ ...addAccountData, level: lvl })} className="w-4 h-4 text-blue-600 border-gray-300" />
-                      <span className={`text-sm font-black ${addAccountData.level === lvl ? 'text-gray-900' : 'text-gray-400'}`}>{lvl}</span>
+                      <span className={`text-sm font-black ${addAccountData.level === lvl ? 'text-gray-900' : 'text-gray-400'}`}>{lvl.toLocaleString('en-US')}</span>
                     </label>
                   ))}
                </div>

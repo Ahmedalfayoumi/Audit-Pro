@@ -382,7 +382,7 @@ const App: React.FC = () => {
         file={activeMappingFile}
         onBack={() => setActiveMappingFileId(null)}
         onUpdateFile={(updatedFile) => {
-          setAuditFiles(auditFiles.map(f => f.id === updatedFile.id ? updatedFile : f));
+          setAuditFiles(prev => prev.map(f => f.id === updatedFile.id ? updatedFile : f));
         }}
       />
     );

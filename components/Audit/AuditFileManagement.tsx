@@ -58,6 +58,15 @@ const AuditFileManagement: React.FC<AuditFileManagementProps> = ({
     );
   }, [auditFiles, searchQuery]);
 
+  // Helper for dd/mm/yyyy date with Western digits
+  const getFormattedDate = () => {
+    const now = new Date();
+    const d = String(now.getDate()).padStart(2, '0');
+    const m = String(now.getMonth() + 1).padStart(2, '0');
+    const y = now.getFullYear();
+    return `${d}/${m}/${y}`;
+  };
+
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>, field: string) => {
     if (e.target.files && e.target.files[0]) {
       const file = e.target.files[0];
@@ -124,7 +133,6 @@ const AuditFileManagement: React.FC<AuditFileManagementProps> = ({
   };
 
   const handleOpenEdit = (file: AuditFile) => {
-    setEditingFile(file);
     setFormData({
       companyId: file.companyId,
       financialYear: file.financialYear,
@@ -134,14 +142,15 @@ const AuditFileManagement: React.FC<AuditFileManagementProps> = ({
       trialBalance: null,
       lastYearFinancials: null
     });
+    setEditingFile(file);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    // In edit mode, we only require things if they weren't there before
-    if (!editingFile && (!formData.companyId || !formData.financialYear || !formData.registration || !formData.appointmentLetter || !formData.license || !formData.trialBalance)) {
-      alert('يرجى اختيار الشركة والسنة ورفع جميع الملفات الإجبارية (السجل التجاري، كتاب التعيين، رخصة المهن، وميزان المراجعة)');
+    // Core requirements: Company and Year
+    if (!formData.companyId || !formData.financialYear) {
+      alert('يرجى اختيار الشركة والسنة المالية أولاً');
       return;
     }
 
@@ -152,7 +161,7 @@ const AuditFileManagement: React.FC<AuditFileManagementProps> = ({
       if (formData.trialBalance) {
         const parsed = await parseXLSX(formData.trialBalance);
         
-        // Validation
+        // Balance Check
         let totalOpeningDebit = 0, totalOpeningCredit = 0, totalPeriodDebit = 0, totalPeriodCredit = 0, totalNetBalance = 0;
         parsed.forEach(acc => {
           totalOpeningDebit += acc.openingDebit;
@@ -168,50 +177,52 @@ const AuditFileManagement: React.FC<AuditFileManagementProps> = ({
                            Math.abs(totalNetBalance) < EPSILON;
 
         if (!isBalanced) {
-          alert("خطأ: ميزان المراجعة غير متوازن. يرجى التأكد من تساوي المدين والدائن في الأرصدة الافتتاحية والحركات.");
+          alert("خطأ: ميزان المراجعة غير متوازن. يرجى التأكد من تساوي المدين والدائن.");
           return;
         }
         tbAccounts = parsed;
       }
+
+      if (editingFile) {
+        const updatedFiles = auditFiles.map(f => f.id === editingFile.id ? {
+          ...f,
+          companyId: formData.companyId,
+          companyName: company?.name || f.companyName,
+          financialYear: formData.financialYear,
+          tbAccounts: tbAccounts,
+          status: tbAccounts.length > 0 && f.status === 'Pending' ? 'Review' : f.status
+        } : f);
+        onUpdateFiles(updatedFiles);
+        setEditingFile(null);
+        setExternalShowModal?.(false);
+      } else {
+        const accountsSnapshot = JSON.parse(JSON.stringify(accounts));
+        const newFile: AuditFile = {
+          id: Math.random().toString(36).substr(2, 9),
+          companyId: formData.companyId,
+          companyName: company?.name || 'Unknown',
+          financialYear: formData.financialYear,
+          uploadDate: getFormattedDate(),
+          status: 'Pending',
+          accounts: accountsSnapshot, 
+          tbMappings: {},
+          tbAccounts: tbAccounts
+        };
+        onUpdateFiles([newFile, ...auditFiles]);
+        setExternalShowModal?.(false);
+      }
+
+      // Reset Form
+      setFormData({ 
+        companyId: '', financialYear: '', registration: null,
+        appointmentLetter: null, license: null, trialBalance: null,
+        lastYearFinancials: null
+      });
+
     } catch (err) {
-      alert("فشل في قراءة ملف ميزان المراجعة");
-      return;
+      console.error("Error submitting audit file:", err);
+      alert("حدث خطأ أثناء معالجة الطلب. يرجى التأكد من صحة الملفات المرفوعة.");
     }
-
-    if (editingFile) {
-      const updatedFiles = auditFiles.map(f => f.id === editingFile.id ? {
-        ...f,
-        companyId: formData.companyId,
-        companyName: company?.name || f.companyName,
-        financialYear: formData.financialYear,
-        tbAccounts: tbAccounts,
-        // Update mappings if new TB uploaded (reset if names changed, but here we keep for now)
-        status: tbAccounts.length > 0 && f.status === 'Pending' ? 'Review' : f.status
-      } : f);
-      onUpdateFiles(updatedFiles);
-      setEditingFile(null);
-    } else {
-      const accountsSnapshot = JSON.parse(JSON.stringify(accounts));
-      const newFile: AuditFile = {
-        id: Math.random().toString(36).substr(2, 9),
-        companyId: formData.companyId,
-        companyName: company?.name || 'Unknown',
-        financialYear: formData.financialYear,
-        uploadDate: new Date().toISOString().split('T')[0],
-        status: 'Pending',
-        accounts: accountsSnapshot, 
-        tbMappings: {},
-        tbAccounts: tbAccounts
-      };
-      onUpdateFiles([newFile, ...auditFiles]);
-      setExternalShowModal?.(false);
-    }
-
-    setFormData({ 
-      companyId: '', financialYear: '', registration: null,
-      appointmentLetter: null, license: null, trialBalance: null,
-      lastYearFinancials: null
-    });
   };
 
   const ActionButtons = ({ file }: { file: AuditFile }) => (
@@ -257,7 +268,11 @@ const AuditFileManagement: React.FC<AuditFileManagementProps> = ({
         </div>
         <div className="flex flex-wrap items-center gap-4 w-full sm:w-auto">
           <button 
-            onClick={() => setExternalShowModal?.(true)} 
+            onClick={() => {
+              setEditingFile(null);
+              setFormData({ companyId: '', financialYear: '', registration: null, appointmentLetter: null, license: null, trialBalance: null, lastYearFinancials: null });
+              setExternalShowModal?.(true);
+            }} 
             className="flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-5 py-2.5 rounded-xl text-xs font-black shadow-lg shadow-blue-600/20 transition-all hover:scale-[1.02] active:scale-95 whitespace-nowrap"
           >
             <Plus size={16} /> إضافة ملف تدقيق جديد
@@ -432,7 +447,7 @@ const AuditFileManagement: React.FC<AuditFileManagementProps> = ({
                 <div className="p-2 sm:p-3 bg-blue-600 text-white rounded-xl sm:rounded-2xl shadow-lg shadow-blue-200">
                   {editingFile ? <Edit3 size={20} className="sm:w-6 sm:h-6" /> : <Plus size={20} className="sm:w-6 sm:h-6" />}
                 </div>
-                <h4 className="text-lg sm:text-xl font-black text-gray-900">{editingFile ? 'تعديل ملف التدقيق' : 'إضافة ملف تدقيق جديد'}</h4>
+                <h4 className="text-lg sm:text-xl font-black text-gray-900">{editingFile ? 'تعديل ملف التدقيق' : 'إنشاء ملف التدقيق'}</h4>
               </div>
               <button onClick={() => { setExternalShowModal?.(false); setEditingFile(null); }} className="p-2 sm:p-2.5 hover:bg-gray-200 rounded-xl sm:rounded-2xl transition-all text-gray-500"><X size={20} /></button>
             </div>
@@ -440,14 +455,26 @@ const AuditFileManagement: React.FC<AuditFileManagementProps> = ({
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6">
                 <div className="space-y-2">
                   <label className="text-xs sm:text-sm font-black text-gray-600 flex items-center gap-2"><Building2 size={16} className="text-blue-500" /> اختيار الشركة *</label>
-                  <select disabled={!!editingFile} required value={formData.companyId} onChange={e => setFormData({ ...formData, companyId: e.target.value })} className="w-full p-3 sm:p-4 border border-gray-200 rounded-xl sm:rounded-2xl focus:ring-2 focus:ring-blue-500 outline-none bg-gray-50/50 text-sm font-bold disabled:opacity-60">
+                  <select 
+                    disabled={!!editingFile} 
+                    required={!editingFile} 
+                    value={formData.companyId} 
+                    onChange={e => setFormData({ ...formData, companyId: e.target.value })} 
+                    className="w-full p-3 sm:p-4 border border-gray-200 rounded-xl sm:rounded-2xl focus:ring-2 focus:ring-blue-500 outline-none bg-gray-50/50 text-sm font-bold disabled:opacity-60"
+                  >
                     <option value="">اختر الشركة...</option>
                     {companies.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
                   </select>
                 </div>
                 <div className="space-y-2">
                   <label className="text-xs sm:text-sm font-black text-gray-600 flex items-center gap-2"><CalendarDays size={16} className="text-blue-500" /> السنة المالية *</label>
-                  <select disabled={!!editingFile} required value={formData.financialYear} onChange={e => setFormData({ ...formData, financialYear: e.target.value })} className="w-full p-3 sm:p-4 border border-gray-200 rounded-xl sm:rounded-2xl focus:ring-2 focus:ring-blue-500 outline-none bg-gray-50/50 text-sm font-bold disabled:opacity-60">
+                  <select 
+                    disabled={!!editingFile} 
+                    required={!editingFile} 
+                    value={formData.financialYear} 
+                    onChange={e => setFormData({ ...formData, financialYear: e.target.value })} 
+                    className="w-full p-3 sm:p-4 border border-gray-200 rounded-xl sm:rounded-2xl focus:ring-2 focus:ring-blue-500 outline-none bg-gray-50/50 text-sm font-bold disabled:opacity-60"
+                  >
                     <option value="">اختر السنة...</option>
                     {financialYears.map(y => <option key={y} value={y}>{y}</option>)}
                   </select>
@@ -455,13 +482,13 @@ const AuditFileManagement: React.FC<AuditFileManagementProps> = ({
               </div>
 
               <div className="space-y-4 sm:space-y-6">
-                <h5 className="font-black text-gray-800 border-b pb-3 text-xs sm:text-sm flex items-center gap-2"><Upload size={18} className="text-blue-600" /> المستندات المطلوبة</h5>
+                <h5 className="font-black text-gray-800 border-b pb-3 text-xs sm:text-sm flex items-center gap-2"><Upload size={18} className="text-blue-600" /> المستندات (اختياري عند الإنشاء)</h5>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div className="p-4 border-2 border-dashed border-blue-100 rounded-3xl bg-blue-50/20">
                     <div className="flex items-center gap-3 mb-3">
                       <div className="w-10 h-10 rounded-xl bg-white shadow-sm flex items-center justify-center text-blue-600"><FileBadge size={20} /></div>
                       <div>
-                        <p className="font-black text-gray-800 text-xs">السجل التجاري {!editingFile && '*'}</p>
+                        <p className="font-black text-gray-800 text-xs">السجل التجاري</p>
                         <p className="text-[9px] text-gray-400 font-bold">PDF فقط</p>
                       </div>
                     </div>
@@ -475,7 +502,7 @@ const AuditFileManagement: React.FC<AuditFileManagementProps> = ({
                     <div className="flex items-center gap-3 mb-3">
                       <div className="w-10 h-10 rounded-xl bg-white shadow-sm flex items-center justify-center text-blue-600"><FileSignature size={20} /></div>
                       <div>
-                        <p className="font-black text-gray-800 text-xs">كتاب التعيين {!editingFile && '*'}</p>
+                        <p className="font-black text-gray-800 text-xs">كتاب التعيين</p>
                         <p className="text-[9px] text-gray-400 font-bold">PDF, JPG, PNG</p>
                       </div>
                     </div>
@@ -489,7 +516,7 @@ const AuditFileManagement: React.FC<AuditFileManagementProps> = ({
                     <div className="flex items-center gap-3 mb-3">
                       <div className="w-10 h-10 rounded-xl bg-white shadow-sm flex items-center justify-center text-amber-600"><ShieldCheck size={20} /></div>
                       <div>
-                        <p className="font-black text-gray-800 text-xs">رخصة المهن {!editingFile && '*'}</p>
+                        <p className="font-black text-gray-800 text-xs">رخصة المهن</p>
                         <p className="text-[9px] text-gray-400 font-bold">PDF, JPG, PNG</p>
                       </div>
                     </div>
@@ -499,26 +526,21 @@ const AuditFileManagement: React.FC<AuditFileManagementProps> = ({
                     </label>
                   </div>
 
-                  <div className={`p-4 border-2 border-dashed rounded-3xl ${editingFile?.tbAccounts.length === 0 ? 'border-red-200 bg-red-50/20' : 'border-blue-100 bg-blue-50/20'}`}>
+                  <div className={`p-4 border-2 border-dashed rounded-3xl border-blue-100 bg-blue-50/20`}>
                     <div className="flex items-center justify-between gap-3 mb-3">
                       <div className="flex items-center gap-3">
-                        <div className={`w-10 h-10 rounded-xl bg-white shadow-sm flex items-center justify-center ${editingFile?.tbAccounts.length === 0 ? 'text-red-600' : 'text-green-600'}`}>
+                        <div className={`w-10 h-10 rounded-xl bg-white shadow-sm flex items-center justify-center text-green-600`}>
                           <FileSpreadsheet size={20} />
                         </div>
                         <div>
-                          <p className={`font-black text-xs ${editingFile?.tbAccounts.length === 0 ? 'text-red-700' : 'text-gray-800'}`}>ميزان المراجعة {!editingFile && '*'}</p>
+                          <p className={`font-black text-xs text-gray-800`}>ميزان المراجعة</p>
                           <p className="text-[9px] text-gray-400 font-bold">إكسل (.xlsx)</p>
                         </div>
                       </div>
                       <button type="button" onClick={downloadTrialBalanceTemplate} className="text-[8px] bg-green-50 text-green-700 px-2 py-1 rounded-lg border border-green-100 font-black">تحميل النموذج</button>
                     </div>
-                    {editingFile?.tbAccounts.length === 0 && (
-                      <div className="mb-2 p-1.5 bg-red-50 text-red-600 text-[9px] font-black rounded border border-red-100 flex items-center gap-1">
-                        <AlertCircle size={12}/> تنبيه: ميزان المراجعة مطلوب للمتابعة
-                      </div>
-                    )}
-                    <label className={`cursor-pointer block w-full bg-white px-4 py-2.5 rounded-xl border shadow-sm text-[10px] font-black text-center hover:bg-blue-600 hover:text-white transition-all truncate ${editingFile?.tbAccounts.length === 0 ? 'border-red-200 text-red-600' : 'border-blue-100 text-blue-600'}`}>
-                      {formData.trialBalance ? formData.trialBalance.name : (editingFile?.tbAccounts.length === 0 ? 'رفع ميزان المراجعة الآن' : 'تحديث ميزان المراجعة')}
+                    <label className={`cursor-pointer block w-full bg-white px-4 py-2.5 rounded-xl border border-blue-100 shadow-sm text-[10px] font-black text-blue-600 text-center hover:bg-blue-600 hover:text-white transition-all truncate`}>
+                      {formData.trialBalance ? formData.trialBalance.name : (editingFile?.tbAccounts.length === 0 ? 'رفع ميزان المراجعة' : 'تحديث ميزان المراجعة')}
                       <input type="file" className="hidden" accept=".xlsx" onChange={(e) => handleFileChange(e, 'trialBalance')} />
                     </label>
                   </div>
@@ -528,7 +550,13 @@ const AuditFileManagement: React.FC<AuditFileManagementProps> = ({
                 <button type="submit" className="flex-1 bg-blue-600 text-white py-4 rounded-2xl font-black shadow-xl shadow-blue-600/30 hover:bg-blue-700 active:scale-95 transition-all flex items-center justify-center gap-2">
                   <Save size={20} /> {editingFile ? 'تحديث ملف التدقيق' : 'إنشاء ملف التدقيق'}
                 </button>
-                <button type="button" onClick={() => { setExternalShowModal?.(false); setEditingFile(null); }} className="px-10 bg-gray-100 text-gray-700 py-4 rounded-2xl font-black hover:bg-gray-200 transition-all">إلغاء</button>
+                <button 
+                  type="button" 
+                  onClick={() => { setExternalShowModal?.(false); setEditingFile(null); }} 
+                  className="px-10 bg-gray-100 text-gray-700 py-4 rounded-2xl font-black hover:bg-gray-200 transition-all"
+                >
+                  إلغاء
+                </button>
               </div>
             </form>
           </div>
