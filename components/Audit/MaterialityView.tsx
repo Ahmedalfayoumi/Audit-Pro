@@ -23,6 +23,16 @@ const RISK_TABLE: Record<number, { revenue: number; assets: number; label: strin
 const MaterialityView: React.FC<MaterialityViewProps> = ({ file, onUpdateFile, onBack }) => {
   const currentMateriality = file.materialityData || { riskLevel: 2 };
 
+  // Helper for dd/mm/yyyy date with Western digits
+  const formatDate = (date: Date) => {
+    const d = String(date.getDate()).padStart(2, '0');
+    const m = String(date.getMonth() + 1).padStart(2, '0');
+    const y = date.getFullYear();
+    return `${d}/${m}/${y}`;
+  };
+
+  const displayDate = useMemo(() => formatDate(new Date()), []);
+
   const { totalRevenue, totalAssets } = useMemo(() => {
     let rev = 0;
     let ass = 0;
@@ -74,13 +84,12 @@ const MaterialityView: React.FC<MaterialityViewProps> = ({ file, onUpdateFile, o
     e.preventDefault();
     e.stopPropagation();
     
+    // Briefly change title for file naming
     const originalTitle = document.title;
     document.title = `Materiality_${file.companyName}_${file.financialYear}`;
     
-    // Explicitly call print
     window.print();
     
-    // Restore title
     setTimeout(() => {
       document.title = originalTitle;
     }, 500);
@@ -90,18 +99,16 @@ const MaterialityView: React.FC<MaterialityViewProps> = ({ file, onUpdateFile, o
     <div className="flex flex-col h-screen bg-[#f8fafc] overflow-hidden font-sans text-right" dir="rtl">
       {/* 
           CRITICAL FIX FOR PRINTING: 
-          We must reset the height and overflow of all parent containers 
-          during printing, otherwise only the visible part of the screen 
-          is printed.
+          Resetting height and overflow of all containers during print 
+          to ensure full page capture.
       */}
       <style>{`
         @media print {
           @page {
             size: A4;
-            margin: 1.5cm;
+            margin: 1cm;
           }
 
-          /* Force all containers to be visible and have natural height */
           html, body, #root, [class*="h-screen"], [class*="flex-col"] {
             height: auto !important;
             min-height: auto !important;
@@ -110,7 +117,6 @@ const MaterialityView: React.FC<MaterialityViewProps> = ({ file, onUpdateFile, o
             background: white !important;
           }
 
-          /* Hide UI elements that shouldn't be in the PDF */
           .no-print, header, nav, aside, button {
             display: none !important;
             visibility: hidden !important;
@@ -119,7 +125,6 @@ const MaterialityView: React.FC<MaterialityViewProps> = ({ file, onUpdateFile, o
             padding: 0 !important;
           }
 
-          /* Explicitly show the print container */
           .print-only {
             display: block !important;
             visibility: visible !important;
@@ -136,11 +141,10 @@ const MaterialityView: React.FC<MaterialityViewProps> = ({ file, onUpdateFile, o
 
           .print-title {
             text-align: center;
-            font-size: 24pt;
+            font-size: 22pt;
             font-weight: bold;
             text-decoration: underline;
-            margin-bottom: 30pt;
-            color: black !important;
+            margin-bottom: 25pt;
           }
 
           .print-header-table {
@@ -151,15 +155,14 @@ const MaterialityView: React.FC<MaterialityViewProps> = ({ file, onUpdateFile, o
 
           .print-header-table td {
             border: 1pt solid #000;
-            padding: 8pt;
+            padding: 10pt;
             font-size: 11pt;
-            color: black !important;
           }
 
           .print-header-table td:nth-child(odd) {
-            background-color: #f3f4f6 !important;
+            background-color: #f1f5f9 !important;
             font-weight: bold;
-            width: 120pt;
+            width: 130pt;
             -webkit-print-color-adjust: exact;
             print-color-adjust: exact;
           }
@@ -168,7 +171,7 @@ const MaterialityView: React.FC<MaterialityViewProps> = ({ file, onUpdateFile, o
             display: flex;
             align-items: center;
             margin-bottom: 12pt;
-            border-bottom: 0.5pt solid #eee;
+            border-bottom: 1pt solid #e2e8f0;
             padding-bottom: 8pt;
             page-break-inside: avoid;
           }
@@ -178,23 +181,20 @@ const MaterialityView: React.FC<MaterialityViewProps> = ({ file, onUpdateFile, o
             font-size: 12pt;
             font-weight: bold;
             text-align: right;
-            color: black !important;
           }
 
           .print-value {
-            width: 140pt;
+            width: 150pt;
             text-align: center;
-            border: 1.5pt solid #000;
-            padding: 8pt;
+            border: 2pt solid #000;
+            padding: 10pt;
             font-weight: bold;
-            font-size: 13pt;
-            background-color: white !important;
-            color: black !important;
+            font-size: 14pt;
           }
 
           .print-highlight {
             border: 2pt solid #000 !important;
-            background-color: #f9fafb !important;
+            background-color: #f8fafc !important;
             -webkit-print-color-adjust: exact;
             print-color-adjust: exact;
           }
@@ -203,25 +203,23 @@ const MaterialityView: React.FC<MaterialityViewProps> = ({ file, onUpdateFile, o
             margin-top: 30pt;
             border: 1.5pt solid #000;
             padding: 15pt;
-            min-height: 150pt;
+            min-height: 120pt;
             font-size: 11pt;
-            line-height: 1.6;
-            color: black !important;
+            line-height: 1.8;
             page-break-inside: avoid;
           }
 
           .print-footer {
-            margin-top: 40pt;
+            margin-top: 50pt;
             border-top: 1pt solid #000;
             padding-top: 10pt;
             display: flex;
             justify-content: space-between;
             font-size: 9pt;
-            color: #444 !important;
+            color: #64748b !important;
           }
         }
 
-        /* Screen behavior for print-only div */
         .print-only {
           display: none;
         }
@@ -264,7 +262,7 @@ const MaterialityView: React.FC<MaterialityViewProps> = ({ file, onUpdateFile, o
       {/* Screen Content */}
       <div className="flex-1 overflow-y-auto p-4 sm:p-8 custom-scrollbar no-print bg-[#f8fafc]">
         <div className="max-w-4xl mx-auto space-y-6">
-          {/* Header Info Section */}
+          {/* Header Info Section - Updated Date Format */}
           <div className="bg-white p-6 rounded-[2rem] shadow-sm border border-gray-100 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             <div className="space-y-1">
               <p className="text-[10px] font-black text-gray-400 flex items-center gap-1"><User size={12}/> اسم العميل :</p>
@@ -288,7 +286,7 @@ const MaterialityView: React.FC<MaterialityViewProps> = ({ file, onUpdateFile, o
             </div>
             <div className="space-y-1">
               <p className="text-[10px] font-black text-gray-400">التاريخ :</p>
-              <p className="font-bold text-gray-800 text-sm border-b pb-1">{new Date().toLocaleDateString('ar-JO')}</p>
+              <p className="font-bold text-gray-800 text-sm border-b pb-1" dir="ltr" style={{ textAlign: 'right' }}>{displayDate}</p>
             </div>
           </div>
 
@@ -404,7 +402,7 @@ const MaterialityView: React.FC<MaterialityViewProps> = ({ file, onUpdateFile, o
 
       {/* PRINT-ONLY PDF LAYOUT */}
       <div className="print-only print-container">
-        <div className="print-title">تقرير الأهمية النسبية (Materiality)</div>
+        <div className="print-title">تقرير الأهمية النسبية (Materiality Report)</div>
         
         <table className="print-header-table">
           <tbody>
@@ -424,7 +422,7 @@ const MaterialityView: React.FC<MaterialityViewProps> = ({ file, onUpdateFile, o
               <td>أنجزها :</td>
               <td>زيد الدباغ</td>
               <td>التاريخ :</td>
-              <td>{new Date().toLocaleDateString('ar-JO')}</td>
+              <td dir="ltr">{displayDate}</td>
             </tr>
           </tbody>
         </table>
@@ -490,7 +488,7 @@ const MaterialityView: React.FC<MaterialityViewProps> = ({ file, onUpdateFile, o
 
         <div className="print-footer">
           <div>Audit Pro System - P.4 Materiality Form</div>
-          <div>تاريخ الطباعة: {new Date().toLocaleString('ar-JO')}</div>
+          <div>تاريخ الطباعة: {displayDate}</div>
         </div>
       </div>
     </div>
