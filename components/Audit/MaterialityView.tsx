@@ -1,9 +1,9 @@
 
-import React, { useMemo } from 'react';
+import React, { useMemo, useState } from 'react';
 import { 
   FileText, ShieldAlert, TrendingDown, Percent, 
   Calculator, Info, Save, ArrowRight, Building2, 
-  User, Calendar, Hash, AlertTriangle, FileDown 
+  User, Calendar, Hash, AlertTriangle, FileDown, Loader2
 } from 'lucide-react';
 import { AuditFile, MaterialityData } from '../../types';
 
@@ -21,14 +21,14 @@ const RISK_TABLE: Record<number, { revenue: number; assets: number; label: strin
 };
 
 const MaterialityView: React.FC<MaterialityViewProps> = ({ file, onUpdateFile, onBack }) => {
+  const [isPrinting, setIsPrinting] = useState(false);
   const currentMateriality = file.materialityData || { riskLevel: 2 };
 
-  // Helper for dd/mm/yyyy date with Western digits (1 2 3)
+  // Helper for dd/mm/yyyy date with Western digits
   const formatDate = (date: Date) => {
     const d = String(date.getDate()).padStart(2, '0');
     const m = String(date.getMonth() + 1).padStart(2, '0');
     const y = date.getFullYear();
-    // Use Western digits explicitly by ensuring string output
     return `${d}/${m}/${y}`;
   };
 
@@ -38,7 +38,7 @@ const MaterialityView: React.FC<MaterialityViewProps> = ({ file, onUpdateFile, o
     let rev = 0;
     let ass = 0;
     file.tbAccounts.forEach(tbAcc => {
-      const mappedId = file.tbMappings[tbAcc.name];
+      const mappedId = file.tbMappings[tbAcc.name] || file.tbMappings[tbAcc.name.trim()];
       if (mappedId) {
         const coaAcc = file.accounts.find(a => a.id === mappedId);
         if (coaAcc) {
@@ -72,7 +72,7 @@ const MaterialityView: React.FC<MaterialityViewProps> = ({ file, onUpdateFile, o
   const unexpectedErrorRate = 0.05;
   const calculatedMateriality = basicMateriality * (1 - unexpectedErrorRate);
 
-  // Force Western digits (1, 2, 3) using 'en-US' locale
+  // Consistent formatting with Western digits
   const formatNum = (num: number) => num.toLocaleString('en-US', { minimumFractionDigits: 3, maximumFractionDigits: 3 });
 
   const handleUpdate = (updates: Partial<MaterialityData>) => {
@@ -86,33 +86,31 @@ const MaterialityView: React.FC<MaterialityViewProps> = ({ file, onUpdateFile, o
     e.preventDefault();
     e.stopPropagation();
     
-    // Change document title temporarily for file naming in PDF print dialog
-    const originalTitle = document.title;
-    document.title = `Materiality_${file.companyName}_${file.financialYear}`;
+    setIsPrinting(true);
     
-    // Trigger the print dialog
-    window.print();
-    
-    // Restore title
+    // Use a small delay to allow UI state to update if necessary
     setTimeout(() => {
+      const originalTitle = document.title;
+      document.title = `Materiality_${file.companyName}_${file.financialYear}`;
+      
+      window.print();
+      
       document.title = originalTitle;
-    }, 500);
+      setIsPrinting(false);
+    }, 100);
   };
 
   return (
     <div className="flex flex-col h-screen bg-[#f8fafc] overflow-hidden font-sans text-right" dir="rtl">
-      {/* 
-          Aggressive Print CSS to ensure the SPA components don't interfere with the print engine.
-          We hide everything by default and only show the .print-only section.
-      */}
       <style>{`
         @media print {
           @page {
             size: A4;
-            margin: 1cm;
+            margin: 1.5cm;
           }
 
-          html, body, #root, .flex-col, [class*="h-screen"], [class*="overflow-hidden"] {
+          /* Critical: override any SPA layouts that hide overflow or fix heights */
+          html, body, #root, div, section, main {
             height: auto !important;
             min-height: auto !important;
             overflow: visible !important;
@@ -120,47 +118,44 @@ const MaterialityView: React.FC<MaterialityViewProps> = ({ file, onUpdateFile, o
             background: white !important;
           }
 
-          .no-print, header, nav, aside, button, .custom-scrollbar::-webkit-scrollbar {
+          /* Hide everything except the print template */
+          .no-print, header, nav, aside, button, footer, .custom-scrollbar::-webkit-scrollbar {
             display: none !important;
             visibility: hidden !important;
             height: 0 !important;
             width: 0 !important;
-            margin: 0 !important;
-            padding: 0 !important;
           }
 
           .print-only {
             display: block !important;
             visibility: visible !important;
             width: 100% !important;
-            position: relative !important;
             background: white !important;
             color: black !important;
+            direction: rtl !important;
           }
 
           .print-container {
             width: 100%;
-            direction: rtl;
-            font-family: 'Noto Sans Arabic', sans-serif !important;
-            padding: 20px;
+            padding: 0;
+            margin: 0;
           }
 
           .print-title {
             text-align: center;
-            font-size: 20pt;
-            font-weight: bold;
-            text-decoration: underline;
-            margin-bottom: 20pt;
-            border-bottom: 2pt solid black;
+            font-size: 22pt;
+            font-weight: 900;
+            margin-bottom: 30pt;
+            border-bottom: 3pt solid black;
             padding-bottom: 10pt;
           }
 
           .print-header-grid {
             display: grid;
             grid-template-columns: 1fr 1fr;
-            gap: 15pt;
-            margin-bottom: 25pt;
-            border: 1pt solid black;
+            gap: 20pt;
+            margin-bottom: 30pt;
+            border: 1pt solid #000;
             padding: 15pt;
           }
 
@@ -168,12 +163,13 @@ const MaterialityView: React.FC<MaterialityViewProps> = ({ file, onUpdateFile, o
             font-size: 11pt;
             display: flex;
             justify-content: space-between;
-            border-bottom: 0.5pt solid #ddd;
-            padding-bottom: 5pt;
+            border-bottom: 1px solid #eee;
+            padding: 5pt 0;
           }
 
           .print-info-label {
-            font-weight: bold;
+            font-weight: 900;
+            color: #444;
           }
 
           .print-table {
@@ -184,44 +180,45 @@ const MaterialityView: React.FC<MaterialityViewProps> = ({ file, onUpdateFile, o
 
           .print-table td {
             border: 1pt solid black;
-            padding: 10pt;
+            padding: 12pt;
             font-size: 11pt;
           }
 
           .print-table-label {
-            font-weight: bold;
-            background-color: #f8fafc !important;
+            font-weight: 900;
+            background-color: #f1f5f9 !important;
             width: 70%;
             -webkit-print-color-adjust: exact;
           }
 
           .print-table-value {
             text-align: center;
-            font-weight: bold;
-            font-size: 13pt;
+            font-weight: 900;
+            font-size: 12pt;
             width: 30%;
           }
 
           .print-final-box {
-            margin-top: 20pt;
-            border: 3pt solid black;
-            padding: 15pt;
+            margin-top: 30pt;
+            border: 4pt solid black;
+            padding: 20pt;
             display: flex;
             justify-content: space-between;
             align-items: center;
-            background-color: #f1f5f9 !important;
+            background-color: #f8fafc !important;
             -webkit-print-color-adjust: exact;
           }
 
           .print-footer {
             position: fixed;
-            bottom: 0;
+            bottom: 1cm;
             width: 100%;
-            border-top: 1pt solid black;
-            padding-top: 5pt;
+            border-top: 1pt solid #ccc;
+            padding-top: 10pt;
             display: flex;
             justify-content: space-between;
-            font-size: 8pt;
+            font-size: 9pt;
+            color: #666;
           }
         }
 
@@ -230,14 +227,12 @@ const MaterialityView: React.FC<MaterialityViewProps> = ({ file, onUpdateFile, o
         }
       `}</style>
 
-      {/* Main View Header */}
       <header className="h-16 bg-white border-b flex items-center justify-between px-8 shadow-sm shrink-0 no-print z-[90]">
         <div className="flex items-center gap-4">
           <button 
             type="button"
             onClick={onBack} 
             className="p-2 text-gray-600 hover:bg-gray-100 rounded-xl transition-all"
-            aria-label="Back"
           >
             <ArrowRight size={24} />
           </button>
@@ -249,10 +244,14 @@ const MaterialityView: React.FC<MaterialityViewProps> = ({ file, onUpdateFile, o
         <div className="flex items-center gap-3">
           <button 
             type="button"
+            disabled={isPrinting}
             onClick={handleDownloadPDF}
-            className="flex items-center gap-2 bg-slate-800 text-white px-5 py-2.5 rounded-xl text-xs font-black shadow-lg hover:bg-black transition-all active:scale-95"
+            className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-xs font-black shadow-lg transition-all active:scale-95 ${
+              isPrinting ? 'bg-slate-400 cursor-not-allowed' : 'bg-slate-800 text-white hover:bg-black'
+            }`}
           >
-            <FileDown size={16} /> تنزيل PDF
+            {isPrinting ? <Loader2 size={16} className="animate-spin" /> : <FileDown size={16} />}
+            {isPrinting ? 'جاري التحضير...' : 'تنزيل PDF'}
           </button>
           <button 
             type="button" 
@@ -264,10 +263,8 @@ const MaterialityView: React.FC<MaterialityViewProps> = ({ file, onUpdateFile, o
         </div>
       </header>
 
-      {/* Main View Content */}
       <div className="flex-1 overflow-y-auto p-4 sm:p-8 custom-scrollbar no-print bg-[#f8fafc]">
         <div className="max-w-4xl mx-auto space-y-6">
-          {/* Top Info Cards */}
           <div className="bg-white p-6 rounded-[2rem] shadow-sm border border-gray-100 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             <div className="space-y-1">
               <p className="text-[10px] font-black text-gray-400 flex items-center gap-1"><User size={12}/> اسم العميل :</p>
@@ -283,7 +280,7 @@ const MaterialityView: React.FC<MaterialityViewProps> = ({ file, onUpdateFile, o
             </div>
             <div className="space-y-1">
               <p className="text-[10px] font-black text-gray-400 flex items-center gap-1"><Hash size={12}/> رقم الملف الدائم :</p>
-              <p className="font-bold text-gray-800 text-sm border-b pb-1">AU-{file.companyId.slice(0, 4)}</p>
+              <p className="font-bold text-gray-800 text-sm border-b pb-1" dir="ltr" style={{textAlign: 'right'}}>AU-{file.companyId.slice(0, 4)}</p>
             </div>
             <div className="space-y-1">
               <p className="text-[10px] font-black text-gray-400">أنجزها :</p>
@@ -295,7 +292,6 @@ const MaterialityView: React.FC<MaterialityViewProps> = ({ file, onUpdateFile, o
             </div>
           </div>
 
-          {/* Form Content */}
           <div className="bg-white rounded-[2.5rem] shadow-sm border border-gray-100 overflow-hidden">
              <div className="p-6 bg-slate-50 border-b flex items-center justify-between">
                 <h3 className="font-black text-slate-700 flex items-center gap-2"><Calculator className="text-blue-600" /> احتساب أساس المادية</h3>
@@ -308,12 +304,12 @@ const MaterialityView: React.FC<MaterialityViewProps> = ({ file, onUpdateFile, o
                 <div className="space-y-4">
                   <div className="flex items-center justify-between gap-4 p-4 rounded-2xl bg-gray-50 border border-gray-100">
                     <p className="text-xs sm:text-sm font-black text-gray-700 flex-1">1- قيمة الايرادات المتوقعة (ويتم تعديلها قبل إنهاء أعمال التدقيق):</p>
-                    <div className="w-40 p-3 bg-white border border-gray-200 rounded-xl text-center font-black text-blue-600 shadow-sm" dir="ltr">{formatNum(totalRevenue)}</div>
+                    <div className="w-44 p-3 bg-white border border-gray-200 rounded-xl text-center font-black text-blue-600 shadow-sm" dir="ltr">{formatNum(totalRevenue)}</div>
                   </div>
 
                   <div className="flex items-center justify-between gap-4 p-4 rounded-2xl bg-gray-50 border border-gray-100">
                     <p className="text-xs sm:text-sm font-black text-gray-700 flex-1">2- قيمة الموجودات المتوقعة (ويتم تعديلها قبل إنهاء أعمال التدقيق):</p>
-                    <div className="w-40 p-3 bg-white border border-gray-200 rounded-xl text-center font-black text-blue-600 shadow-sm" dir="ltr">{formatNum(totalAssets)}</div>
+                    <div className="w-44 p-3 bg-white border border-gray-200 rounded-xl text-center font-black text-blue-600 shadow-sm" dir="ltr">{formatNum(totalAssets)}</div>
                   </div>
 
                   <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 p-4 rounded-2xl bg-gray-50 border border-gray-100">
@@ -332,7 +328,7 @@ const MaterialityView: React.FC<MaterialityViewProps> = ({ file, onUpdateFile, o
                       value={otherBasis || ''}
                       onChange={(e) => handleUpdate({ otherBasis: parseFloat(e.target.value) || 0 })}
                       placeholder="0.00"
-                      className="w-40 p-3 bg-white border border-gray-200 rounded-xl text-center font-black text-amber-600 shadow-sm outline-none focus:ring-2 focus:ring-amber-500/20"
+                      className="w-44 p-3 bg-white border border-gray-200 rounded-xl text-center font-black text-amber-600 shadow-sm outline-none focus:ring-2 focus:ring-amber-500/20"
                       dir="ltr"
                     />
                   </div>
@@ -346,7 +342,7 @@ const MaterialityView: React.FC<MaterialityViewProps> = ({ file, onUpdateFile, o
                     </div>
                     <div className="flex items-center gap-3">
                        <span className="px-3 py-1 bg-blue-600 text-white rounded-lg text-[10px] font-black">{baseLabel}</span>
-                       <div className="w-40 p-3 bg-white border border-blue-200 rounded-xl text-center font-black text-blue-700 shadow-md text-lg" dir="ltr">{formatNum(materialityBaseValue)}</div>
+                       <div className="w-44 p-3 bg-white border border-blue-200 rounded-xl text-center font-black text-blue-700 shadow-md text-lg" dir="ltr">{formatNum(materialityBaseValue)}</div>
                     </div>
                   </div>
 
@@ -363,7 +359,7 @@ const MaterialityView: React.FC<MaterialityViewProps> = ({ file, onUpdateFile, o
                        <select 
                          value={currentMateriality.riskLevel}
                          onChange={(e) => handleUpdate({ riskLevel: parseInt(e.target.value) })}
-                         className="w-40 p-3 bg-white border border-gray-200 rounded-xl text-center font-black text-gray-800 shadow-sm outline-none focus:ring-2 focus:ring-blue-500/20 appearance-none cursor-pointer"
+                         className="w-44 p-3 bg-white border border-gray-200 rounded-xl text-center font-black text-gray-800 shadow-sm outline-none focus:ring-2 focus:ring-blue-500/20 appearance-none cursor-pointer"
                        >
                          <option value={1}>1</option>
                          <option value={2}>2</option>
@@ -375,24 +371,24 @@ const MaterialityView: React.FC<MaterialityViewProps> = ({ file, onUpdateFile, o
 
                   <div className="flex items-center justify-between gap-4 p-4 rounded-2xl bg-white border border-slate-100">
                     <p className="text-xs sm:text-sm font-black text-gray-700 flex-1">6- أساس احتساب المادية (من جدول المخاطر):</p>
-                    <div className="w-40 p-3 bg-slate-50 border border-slate-200 rounded-xl text-center font-black text-slate-600" dir="ltr">{(percentageBasis * 100).toFixed(2)}%</div>
+                    <div className="w-44 p-3 bg-slate-50 border border-slate-200 rounded-xl text-center font-black text-slate-600" dir="ltr">{(percentageBasis * 100).toFixed(2)}%</div>
                   </div>
 
                   <div className="flex items-center justify-between gap-4 p-5 rounded-[1.5rem] bg-indigo-50 border border-indigo-100">
                     <p className="text-xs sm:text-sm font-black text-indigo-900 flex-1">7 - المادية الأساسية (الأساس × نسبة الاحتساب):</p>
-                    <div className="w-40 p-3 bg-white border border-indigo-200 rounded-xl text-center font-black text-indigo-700 shadow-md text-lg" dir="ltr">{formatNum(basicMateriality)}</div>
+                    <div className="w-44 p-3 bg-white border border-indigo-200 rounded-xl text-center font-black text-indigo-700 shadow-md text-lg" dir="ltr">{formatNum(basicMateriality)}</div>
                   </div>
 
                   <div className="flex items-center justify-between gap-4 p-4 rounded-2xl bg-white border border-slate-100">
                     <p className="text-xs sm:text-sm font-black text-gray-700 flex-1">8 - الخطأ غير المتوقع (نسبة ثابتة):</p>
-                    <div className="w-40 p-3 bg-slate-50 border border-slate-200 rounded-xl text-center font-black text-slate-600" dir="ltr">5%</div>
+                    <div className="w-44 p-3 bg-slate-50 border border-slate-200 rounded-xl text-center font-black text-slate-600" dir="ltr">5%</div>
                   </div>
 
-                  <div className="flex items-center justify-between gap-4 p-6 rounded-[2rem] bg-green-50 border border-green-200 ring-4 ring-green-50">
+                  <div className="flex items-center justify-between gap-4 p-6 rounded-[2rem] bg-green-50 border border-green-200 ring-4 ring-green-50 shadow-lg">
                     <div className="flex-1">
                       <p className="text-sm sm:text-base font-black text-green-900 flex items-center gap-2">9 - المادية المستخدمة (المادية المحتسبة): <Percent size={18}/></p>
                     </div>
-                    <div className="w-48 p-4 bg-white border-2 border-green-500 rounded-[1.5rem] text-center font-black text-green-700 shadow-xl text-2xl" dir="ltr">{formatNum(calculatedMateriality)}</div>
+                    <div className="w-52 p-4 bg-white border-2 border-green-500 rounded-[1.5rem] text-center font-black text-green-700 shadow-xl text-2xl" dir="ltr">{formatNum(calculatedMateriality)}</div>
                   </div>
                 </div>
 
@@ -402,7 +398,7 @@ const MaterialityView: React.FC<MaterialityViewProps> = ({ file, onUpdateFile, o
                     value={currentMateriality.notes || ''}
                     onChange={(e) => handleUpdate({ notes: e.target.value })}
                     placeholder="اكتب أي ملاحظات تتعلق بتحديد المادية هنا..."
-                    className="w-full h-32 p-6 bg-gray-50 border border-gray-100 rounded-[2rem] outline-none focus:ring-2 focus:ring-blue-500/20 font-bold text-xs resize-none text-right"
+                    className="w-full h-32 p-6 bg-gray-50 border border-gray-100 rounded-[2rem] outline-none focus:ring-2 focus:ring-blue-500/20 font-bold text-xs resize-none text-right shadow-inner"
                   />
                 </div>
              </div>
@@ -410,7 +406,6 @@ const MaterialityView: React.FC<MaterialityViewProps> = ({ file, onUpdateFile, o
         </div>
       </div>
 
-      {/* PRINT-ONLY FORM (P.4) */}
       <div className="print-only print-container">
         <div className="print-title">احتساب أساس الأهمية النسبية - نموذج (P.4)</div>
         
@@ -455,7 +450,7 @@ const MaterialityView: React.FC<MaterialityViewProps> = ({ file, onUpdateFile, o
               <td className="print-table-value" dir="ltr">{formatNum(otherBasis)}</td>
             </tr>
             <tr style={{ borderTop: '2pt solid black' }}>
-              <td className="print-table-label" style={{ backgroundColor: '#e2e8f0' }}>4- أساس المادية المعتمد (الأقل من 1، 2، 3):</td>
+              <td className="print-table-label" style={{ backgroundColor: '#f1f5f9' }}>4- أساس المادية المعتمد (الأقل من 1، 2، 3):</td>
               <td className="print-table-value" style={{ border: '2pt solid black' }} dir="ltr">{formatNum(materialityBaseValue)}</td>
             </tr>
             <tr>
@@ -478,18 +473,18 @@ const MaterialityView: React.FC<MaterialityViewProps> = ({ file, onUpdateFile, o
         </table>
 
         <div className="print-final-box">
-           <span style={{ fontSize: '15pt', fontWeight: 'bold' }}>9 - الأهمية النسبية النهائية (المادية المستخدمة):</span>
-           <span style={{ fontSize: '20pt', fontWeight: 'bold' }} dir="ltr">{formatNum(calculatedMateriality)}</span>
+           <span style={{ fontSize: '15pt', fontWeight: '900' }}>9 - الأهمية النسبية النهائية (المادية المستخدمة):</span>
+           <span style={{ fontSize: '20pt', fontWeight: '900' }} dir="ltr">{formatNum(calculatedMateriality)}</span>
         </div>
 
-        <div style={{ marginTop: '20pt', border: '1pt solid black', padding: '10pt', minHeight: '100pt' }}>
-           <p style={{ fontWeight: 'bold', marginBottom: '5pt', textDecoration: 'underline' }}>ملاحظات المدقق:</p>
-           <p style={{ fontSize: '10pt', lineHeight: '1.6' }}>{currentMateriality.notes || 'لا يوجد ملاحظات إضافية.'}</p>
+        <div style={{ marginTop: '20pt', border: '1.5pt solid black', padding: '15pt', minHeight: '120pt' }}>
+           <p style={{ fontWeight: '900', marginBottom: '8pt', textDecoration: 'underline' }}>ملاحظات المدقق:</p>
+           <p style={{ fontSize: '10pt', lineHeight: '1.8' }}>{currentMateriality.notes || 'لا يوجد ملاحظات إضافية سجلت في هذا التقرير.'}</p>
         </div>
 
         <div className="print-footer">
-           <span>Audit Pro System - Confidential Working Paper</span>
-           <span dir="ltr">Generated: {displayDate}</span>
+           <span>نظام أوديت برو - أوراق عمل تدقيق الحسابات</span>
+           <span dir="ltr">Generated: {displayDate} - Confidential Document</span>
         </div>
       </div>
     </div>
