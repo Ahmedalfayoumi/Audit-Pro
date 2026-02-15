@@ -90,6 +90,27 @@ export interface Company {
   currency?: string;
 }
 
+// Client Database Related Types
+export interface ClientContact {
+  id: string;
+  companyId: string;
+  name: string;
+  role: string;
+  phone: string;
+  email: string;
+  isPrimary: boolean;
+}
+
+export interface ClientLegalDocument {
+  id: string;
+  companyId: string;
+  type: 'Trade License' | 'Chamber of Commerce' | 'Tax Certificate' | 'SS Certificate' | 'Articles of Association';
+  documentNumber: string;
+  issueDate: string;
+  expiryDate: string;
+  fileUrl?: string;
+}
+
 // Chart of Accounts Types
 export type AccountType = 'Assets' | 'Liabilities' | 'Equity' | 'Revenue' | 'Expenses' | 'COGS';
 
@@ -135,4 +156,13 @@ export interface AuditFile {
   tbMappings: Record<string, string>;
   tbAccounts: TbAccountData[];
   materialityData?: MaterialityData;
+}
+
+export interface AuditTemplate {
+  id: string;
+  name: string;
+  category: 'Accounting' | 'Legal' | 'Internal';
+  fileType: 'xlsx' | 'pdf' | 'docx';
+  description: string;
+  createdAt: string;
 }

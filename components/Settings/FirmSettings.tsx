@@ -1,6 +1,6 @@
 
 import React, { useState, useRef } from 'react';
-import { Building2, Save, Upload, MapPin, User, FileText, CheckCircle2, Image as ImageIcon, Trash2, ShieldCheck, ChevronDown, Palette, Eye, Coins } from 'lucide-react';
+import { Building2, Save, Upload, MapPin, User, FileText, CheckCircle2, Image as ImageIcon, Trash2, ShieldCheck, ChevronDown, Palette, Eye, Coins, Database } from 'lucide-react';
 import { Country, Currency } from '../../types';
 
 interface FirmSettings {
@@ -92,17 +92,36 @@ const FirmSettingsComponent: React.FC<FirmSettingsProps> = ({ settings, onSave, 
       <div className="flex items-center justify-between mb-4">
         <div>
           <h3 className="text-2xl font-black text-gray-800">إعدادات المكتب</h3>
-          <p className="text-gray-500 text-sm mt-1">تخصيص الهوية البصرية والمعلومات الرسمية للمكتب</p>
+          <p className="text-gray-500 text-sm mt-1">تخصيص الهوية البصرية والمعلومات الرسمية للمكتب وقاعدة البيانات</p>
         </div>
         {saveStatus === 'success' && (
           <div className="flex items-center gap-2 bg-green-50 text-green-600 px-4 py-2 rounded-xl text-xs font-black">
             <CheckCircle2 size={16} />
-            تم الحفظ بنجاح
+            تم حفظ التغييرات في قاعدة البيانات
           </div>
         )}
       </div>
 
       <form onSubmit={handleSubmit} className="space-y-8 pb-20">
+        {/* Database Quick Info Card */}
+        <div className="bg-indigo-600 rounded-[2.5rem] p-8 text-white shadow-xl shadow-indigo-100 flex flex-col md:flex-row justify-between items-center gap-6 relative overflow-hidden">
+           <Database size={150} className="absolute -left-10 -bottom-10 opacity-10 rotate-12" />
+           <div className="relative z-10 text-center md:text-right">
+              <h4 className="text-xl font-black mb-2">إدارة البيانات السحابية (المحاكاة)</h4>
+              <p className="text-indigo-100 text-sm font-bold max-w-md">أوديت برو يستخدم تقنية التخزين المحلي الآمن، مما يضمن بقاء بيانات عملائك على جهازك فقط مع إمكانية التصدير الكامل.</p>
+           </div>
+           <div className="flex gap-4 relative z-10">
+              <div className="px-6 py-4 bg-white/10 rounded-3xl backdrop-blur-md text-center border border-white/10">
+                 <p className="text-2xl font-black">Online</p>
+                 <p className="text-[10px] uppercase font-black tracking-widest text-indigo-200">Status</p>
+              </div>
+              <div className="px-6 py-4 bg-white/10 rounded-3xl backdrop-blur-md text-center border border-white/10">
+                 <p className="text-2xl font-black">Secured</p>
+                 <p className="text-[10px] uppercase font-black tracking-widest text-indigo-200">Encryption</p>
+              </div>
+           </div>
+        </div>
+
         <section className="bg-white rounded-[2.5rem] p-8 shadow-sm border border-gray-100 overflow-hidden relative">
           <div className="flex items-center gap-3 mb-8 text-indigo-600">
             <Palette size={24} />

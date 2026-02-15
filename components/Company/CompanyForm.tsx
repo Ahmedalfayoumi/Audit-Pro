@@ -138,14 +138,14 @@ const CompanyForm: React.FC<CompanyFormProps> = ({ onSave, onCancel, initialData
       <div className="flex items-center mb-6 sm:mb-8 pb-4 border-b border-gray-100 lg:border-none">
         <h3 className="text-xl sm:text-2xl font-bold text-gray-800 flex items-center gap-3">
           {initialData ? 'تعديل بيانات الشركة' : 'إضافة شركة جديدة'}
-          <Building className="theme-text-primary hidden sm:block" size={28} />
+          <Building className="text-blue-600 hidden sm:block" size={28} />
         </h3>
       </div>
 
       <div className="space-y-6 sm:space-y-8">
         {/* Basic Info */}
         <section className="bg-white p-5 sm:p-8 rounded-[1.5rem] sm:rounded-2xl shadow-sm border border-gray-100 transition-all hover:shadow-md">
-          <div className="flex items-center mb-6 sm:mb-8 theme-text-primary border-r-4 border-blue-600 pr-4">
+          <div className="flex items-center mb-6 sm:mb-8 border-r-4 border-blue-600 pr-4">
             <h4 className="text-lg sm:text-xl font-black text-gray-800 ml-3">المعلومات الأساسية</h4>
           </div>
           
@@ -157,7 +157,7 @@ const CompanyForm: React.FC<CompanyFormProps> = ({ onSave, onCancel, initialData
                 name="name"
                 value={formData.name}
                 onChange={handleInputChange}
-                className="p-3 sm:p-3.5 border border-gray-200 rounded-xl focus:ring-2 theme-focus-ring outline-none transition-all bg-gray-50/50 font-bold text-sm"
+                className="p-3 sm:p-3.5 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none transition-all bg-gray-50/50 font-bold text-sm text-gray-900"
                 placeholder="أدخل اسم الشركة بالكامل"
               />
             </div>
@@ -170,10 +170,10 @@ const CompanyForm: React.FC<CompanyFormProps> = ({ onSave, onCancel, initialData
                   name="type"
                   value={formData.type}
                   onChange={handleInputChange}
-                  className="w-full p-3 sm:p-3.5 border border-gray-200 rounded-xl focus:ring-2 theme-focus-ring outline-none transition-all bg-white appearance-none pr-10 font-bold text-sm"
+                  className="w-full p-3 sm:p-3.5 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none transition-all bg-white appearance-none pr-10 font-bold text-sm text-gray-900"
                 >
                   {Object.values(CompanyType).map(type => (
-                    <option key={type} value={type}>{type}</option>
+                    <option key={type} value={type} className="text-gray-900">{type}</option>
                   ))}
                 </select>
                 <ChevronDown className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" size={18} />
@@ -188,7 +188,7 @@ const CompanyForm: React.FC<CompanyFormProps> = ({ onSave, onCancel, initialData
                 name="foundingDate"
                 value={formData.foundingDate}
                 onChange={handleInputChange}
-                className="p-3 sm:p-3.5 border border-gray-200 rounded-xl focus:ring-2 theme-focus-ring outline-none transition-all bg-gray-50/50 font-bold text-sm"
+                className="p-3 sm:p-3.5 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none transition-all bg-gray-50/50 font-bold text-sm text-gray-900"
               />
             </div>
 
@@ -200,7 +200,7 @@ const CompanyForm: React.FC<CompanyFormProps> = ({ onSave, onCancel, initialData
                 name="financialYear"
                 value={formData.financialYear}
                 onChange={handleInputChange}
-                className="p-3 sm:p-3.5 border border-gray-200 rounded-xl focus:ring-2 theme-focus-ring outline-none transition-all bg-gray-50/50 font-bold text-sm"
+                className="p-3 sm:p-3.5 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none transition-all bg-gray-50/50 font-bold text-sm text-gray-900"
                 placeholder="2024"
               />
             </div>
@@ -209,7 +209,7 @@ const CompanyForm: React.FC<CompanyFormProps> = ({ onSave, onCancel, initialData
 
         {/* Official Numbers */}
         <section className="bg-white p-5 sm:p-8 rounded-[1.5rem] sm:rounded-2xl shadow-sm border border-gray-100 transition-all hover:shadow-md">
-          <div className="flex items-center mb-6 sm:mb-8 theme-text-primary border-r-4 border-blue-600 pr-4">
+          <div className="flex items-center mb-6 sm:mb-8 border-r-4 border-blue-600 pr-4">
             <h4 className="text-lg sm:text-xl font-black text-gray-800 ml-3">الأرقام الرسمية والضريبية</h4>
           </div>
 
@@ -221,7 +221,7 @@ const CompanyForm: React.FC<CompanyFormProps> = ({ onSave, onCancel, initialData
                 name="nationalNumber"
                 value={formData.nationalNumber}
                 onChange={handleInputChange}
-                className="p-3 sm:p-3.5 border border-gray-200 rounded-xl focus:ring-2 theme-focus-ring outline-none bg-gray-50/50 font-bold text-sm"
+                className="p-3 sm:p-3.5 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none bg-gray-50/50 font-bold text-sm text-gray-900"
               />
             </div>
 
@@ -232,7 +232,7 @@ const CompanyForm: React.FC<CompanyFormProps> = ({ onSave, onCancel, initialData
                 name="registrationNumber"
                 value={formData.registrationNumber}
                 onChange={handleInputChange}
-                className="p-3 sm:p-3.5 border border-gray-200 rounded-xl focus:ring-2 theme-focus-ring outline-none bg-gray-50/50 font-bold text-sm"
+                className="p-3 sm:p-3.5 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none bg-gray-50/50 font-bold text-sm text-gray-900"
               />
             </div>
 
@@ -244,7 +244,7 @@ const CompanyForm: React.FC<CompanyFormProps> = ({ onSave, onCancel, initialData
                   name="taxNumber"
                   value={formData.taxNumber}
                   onChange={handleInputChange}
-                  className="w-full p-3 sm:p-3.5 border border-gray-200 rounded-xl focus:ring-2 theme-focus-ring outline-none bg-gray-50/50 font-bold text-sm"
+                  className="w-full p-3 sm:p-3.5 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none bg-gray-50/50 font-bold text-sm text-gray-900"
                 />
                 <label className="flex items-center gap-3 cursor-pointer">
                   <input 
@@ -252,7 +252,7 @@ const CompanyForm: React.FC<CompanyFormProps> = ({ onSave, onCancel, initialData
                     name="isSubjectToSalesTax"
                     checked={formData.isSubjectToSalesTax}
                     onChange={handleInputChange}
-                    className="w-5 h-5 theme-text-primary rounded-md border-gray-300 focus:ring-2 theme-focus-ring"
+                    className="w-5 h-5 text-blue-600 rounded-md border-gray-300 focus:ring-2 focus:ring-blue-500"
                   />
                   <span className="text-xs sm:text-sm font-bold text-gray-600">خاضعة لضريبة المبيعات</span>
                 </label>
@@ -269,7 +269,7 @@ const CompanyForm: React.FC<CompanyFormProps> = ({ onSave, onCancel, initialData
                     name="isNotRegisteredInSS"
                     checked={formData.isNotRegisteredInSS}
                     onChange={handleInputChange}
-                    className="w-5 h-5 theme-text-primary rounded-md border-gray-300 focus:ring-2 theme-focus-ring"
+                    className="w-5 h-5 text-blue-600 rounded-md border-gray-300 focus:ring-2 focus:ring-blue-500"
                   />
                   <span className="text-xs sm:text-sm font-bold text-gray-600 leading-tight">الشركة غير مسجلة في الضمان</span>
                 </label>
@@ -279,7 +279,7 @@ const CompanyForm: React.FC<CompanyFormProps> = ({ onSave, onCancel, initialData
                     value={formData.socialSecurityNumber || ''}
                     onChange={handleInputChange}
                     placeholder="رقم الضمان الاجتماعي"
-                    className="p-3 sm:p-3.5 border border-gray-200 rounded-xl focus:ring-2 theme-focus-ring outline-none w-full bg-gray-50/50 font-bold text-sm"
+                    className="p-3 sm:p-3.5 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none w-full bg-gray-50/50 font-bold text-sm text-gray-900"
                   />
                 )}
               </div>
@@ -289,7 +289,7 @@ const CompanyForm: React.FC<CompanyFormProps> = ({ onSave, onCancel, initialData
 
         {/* Sectors */}
         <section className="bg-white p-5 sm:p-8 rounded-[1.5rem] sm:rounded-2xl shadow-sm border border-gray-100 transition-all hover:shadow-md">
-          <div className="flex items-center mb-6 theme-text-primary border-r-4 border-blue-600 pr-4">
+          <div className="flex items-center mb-6 border-r-4 border-blue-600 pr-4">
             <h4 className="text-lg sm:text-xl font-black text-gray-800 ml-3">القطاعات</h4>
           </div>
           <p className="text-[10px] sm:text-xs text-gray-500 mb-6 font-medium">(يمكنك اختيار أكثر من قطاع)</p>
@@ -299,7 +299,7 @@ const CompanyForm: React.FC<CompanyFormProps> = ({ onSave, onCancel, initialData
                 key={sector} 
                 className={`flex items-center p-3 sm:p-4 rounded-xl border-2 cursor-pointer transition-all ${
                   formData.sectors?.includes(sector) 
-                    ? 'theme-bg-primary border-transparent text-white shadow-lg scale-[1.02]' 
+                    ? 'bg-blue-600 border-transparent text-white shadow-lg scale-[1.02]' 
                     : 'bg-white border-gray-100 hover:border-blue-200 text-gray-600 shadow-sm'
                 }`}
               >
@@ -319,7 +319,7 @@ const CompanyForm: React.FC<CompanyFormProps> = ({ onSave, onCancel, initialData
         {/* Goals */}
         <section className="bg-white p-5 sm:p-8 rounded-[1.5rem] sm:rounded-2xl shadow-sm border border-gray-100 transition-all hover:shadow-md">
           <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-6 sm:mb-8 gap-4">
-            <div className="theme-text-primary border-r-4 border-blue-600 pr-4">
+            <div className="border-r-4 border-blue-600 pr-4">
               <h4 className="text-lg sm:text-xl font-black text-gray-800">غايات الشركة</h4>
             </div>
             <button 
@@ -339,7 +339,7 @@ const CompanyForm: React.FC<CompanyFormProps> = ({ onSave, onCancel, initialData
                   value={goal}
                   onChange={(e) => handleGoalChange(index, e.target.value)}
                   placeholder={`الغاية رقم ${index + 1}`}
-                  className="flex-1 p-3 sm:p-3.5 border border-gray-200 rounded-xl focus:ring-2 theme-focus-ring outline-none bg-gray-50/50 font-bold text-sm"
+                  className="flex-1 p-3 sm:p-3.5 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none bg-gray-50/50 font-bold text-sm text-gray-900"
                 />
                 {index > 2 && (
                   <button 
@@ -366,9 +366,9 @@ const CompanyForm: React.FC<CompanyFormProps> = ({ onSave, onCancel, initialData
           </button>
           <button 
             type="submit"
-            className="w-full sm:w-auto px-10 py-3 sm:py-3.5 rounded-xl theme-bg-primary text-white hover:opacity-90 font-black flex items-center justify-center shadow-lg theme-shadow-primary transition-all hover:scale-[1.02] active:scale-95 gap-3 text-sm"
+            className="w-full sm:w-auto px-10 py-3 sm:py-3.5 rounded-xl bg-blue-600 text-white hover:bg-blue-700 font-black flex items-center justify-center shadow-lg shadow-blue-200 transition-all hover:scale-[1.02] active:scale-95 gap-3 text-sm"
           >
-            <span>{initialData ? 'تحديث البيانات' : 'حفظ البيانات'}</span>
+            <span className="opacity-100 visible">{initialData ? 'تحديث البيانات' : 'حفظ البيانات'}</span>
             <Save size={18} />
           </button>
         </section>
