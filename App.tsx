@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
-import { LayoutGrid, Building2, Users, FileText, Settings, Plus, Search, ChevronDown, ChevronUp, ChevronRight, Database, Globe, Coins, List, Briefcase, CalendarDays, Workflow, ShieldCheck, Palette, Layers, Menu, X as CloseIcon, ArrowRight, PanelRightClose, PanelRightOpen, LayoutPanelLeft, DownloadCloud, UploadCloud, DatabaseZap, CheckCircle, AlertCircle, X } from 'lucide-react';
+import { LayoutGrid, Building2, Users, FileText, Settings, Plus, Search, ChevronDown, ChevronUp, ChevronRight, Database, Globe, Coins, List, Briefcase, CalendarDays, Workflow, ShieldCheck, Palette, Layers, Menu, X as CloseIcon, ArrowRight, PanelRightClose, PanelRightOpen, LayoutPanelLeft, DownloadCloud, UploadCloud, DatabaseZap, CheckCircle, AlertCircle, X, Loader2, Info, RefreshCw, FileJson } from 'lucide-react';
 import CompanyForm from './components/Company/CompanyForm';
 import CompanyList from './components/Company/CompanyList';
 import UserManagement from './components/Settings/UserManagement';
@@ -27,7 +27,15 @@ interface NavItem {
 
 interface Notification {
   message: string;
-  type: 'success' | 'error';
+  type: 'success' | 'error' | 'info';
+}
+
+interface ImportSummary {
+  companies: number;
+  files: number;
+  accounts: number;
+  contacts: number;
+  docs: number;
 }
 
 const App: React.FC = () => {
@@ -45,6 +53,8 @@ const App: React.FC = () => {
   const [showAuditModal, setShowAuditModal] = useState(false);
   const [activeMappingFileId, setActiveMappingFileId] = useState<string | null>(null);
   const [notification, setNotification] = useState<Notification | null>(null);
+  const [isImporting, setIsImporting] = useState(false);
+  const [importSummary, setImportSummary] = useState<ImportSummary | null>(null);
   
   const [isCompanyFormOpen, setIsCompanyFormOpen] = useState(false);
   const [editingCompany, setEditingCompany] = useState<Company | null>(null);
@@ -180,9 +190,11 @@ const App: React.FC = () => {
   useEffect(() => localStorage.setItem('audit_pro_firm_settings', JSON.stringify(firmSettings)), [firmSettings]);
   useEffect(() => localStorage.setItem('audit_pro_sidebar_state_v3', sidebarState), [sidebarState]);
 
-  const showToast = (message: string, type: 'success' | 'error') => {
+  const showToast = (message: string, type: 'success' | 'error' | 'info') => {
     setNotification({ message, type });
-    setTimeout(() => setNotification(null), 4000);
+    if (type !== 'success') {
+       setTimeout(() => setNotification(null), 6000);
+    }
   };
 
   const exportFullDatabase = () => {
@@ -209,49 +221,64 @@ const App: React.FC = () => {
     const file = e.target.files?.[0];
     if (!file) return;
 
+    setIsImporting(true);
     const reader = new FileReader();
+
     reader.onload = (event) => {
       try {
         const content = event.target?.result as string;
-        if (!content) throw new Error("File is empty");
+        if (!content) throw new Error("المحتوى فارغ، يرجى اختيار ملف صالح.");
         
         const data = JSON.parse(content);
         
-        if (!data || typeof data !== 'object') {
-           throw new Error("Invalid structure: data is not an object");
+        // 1. التحقق الهيكلي العميق
+        if (!data || typeof data !== 'object') throw new Error("تنسيق JSON غير متوافق.");
+        
+        const missing = [];
+        if (!Array.isArray(data.companies)) missing.push("الشركات");
+        if (!Array.isArray(data.accounts)) missing.push("الحسابات");
+        if (!Array.isArray(data.auditFiles)) missing.push("ملفات التدقيق");
+        
+        if (missing.length > 0) {
+          throw new Error(`الملف لا يتبع هيكلية أوديت برو. الجداول المفقودة: ${missing.join('، ')}`);
         }
 
-        if (window.confirm('تنبيه: سيتم استبدال كافة البيانات الحالية بالبيانات الموجودة في الملف المرفوع. هل تريد الاستمرار؟')) {
-          // تحديث الحالات بالترتيب مع توفير قيم افتراضية لضمان عدم حدوث أخطاء
-          setCompanies(Array.isArray(data.companies) ? data.companies : []);
-          setAuditFiles(Array.isArray(data.auditFiles) ? data.auditFiles : []);
-          setAccounts(Array.isArray(data.accounts) ? data.accounts : []);
-          setClientContacts(Array.isArray(data.clientContacts) ? data.clientContacts : []);
-          setClientDocuments(Array.isArray(data.clientDocuments) ? data.clientDocuments : []);
+        // 2. تأكيد الاستبدال
+        if (window.confirm(`سيتم استعادة:\n- ${data.companies.length} شركة\n- ${data.auditFiles.length} ملف تدقيق\n\nهل تريد استبدال قاعدة البيانات الحالية؟`)) {
           
-          if (data.firmSettings && typeof data.firmSettings === 'object') {
-             setFirmSettings(data.firmSettings);
-          }
+          // 3. كتابة فيزيائية للذاكرة
+          localStorage.setItem('audit_pro_companies', JSON.stringify(data.companies));
+          localStorage.setItem('audit_pro_files', JSON.stringify(data.auditFiles));
+          localStorage.setItem('audit_pro_accounts', JSON.stringify(data.accounts));
+          localStorage.setItem('audit_pro_client_contacts', JSON.stringify(data.clientContacts || []));
+          localStorage.setItem('audit_pro_client_docs', JSON.stringify(data.clientDocuments || []));
+          if (data.firmSettings) localStorage.setItem('audit_pro_firm_settings', JSON.stringify(data.firmSettings));
+
+          // 4. عرض ملخص النجاح للمستخدم
+          setImportSummary({
+            companies: data.companies.length,
+            files: data.auditFiles.length,
+            accounts: data.accounts.length,
+            contacts: (data.clientContacts || []).length,
+            docs: (data.clientDocuments || []).length
+          });
           
-          // تصفير الحالات الانتقالية لضمان استقرار العرض
-          setActiveMappingFileId(null);
-          setIsCompanyFormOpen(false);
-          setEditingCompany(null);
-          
-          showToast('تم استعادة البيانات بنجاح، التطبيق الآن يعرض النسخة المستوردة', 'success');
+          showToast(`تمت عملية الاستعادة بنجاح! يرجى مراجعة التقرير.`, 'success');
         }
-      } catch (err) {
-        console.error("Import Error Detail:", err);
-        showToast('فشلت عملية استعادة البيانات، يرجى التأكد من اختيار ملف النسخة الصحيح بصيغة JSON', 'error');
+      } catch (err: any) {
+        console.error("Critical Import Error:", err);
+        showToast(`فشل الاستيراد: ${err.message}`, 'error');
       } finally {
+        setIsImporting(false);
         if (e.target) e.target.value = '';
       }
     };
-    
+
     reader.onerror = () => {
-      showToast('خطأ في قراءة الملف من الجهاز', 'error');
+      setIsImporting(false);
+      showToast('خطأ في قراءة ملف JSON.', 'error');
     };
-    
+
     reader.readAsText(file);
   };
 
@@ -333,12 +360,65 @@ const App: React.FC = () => {
 
   return (
     <div className="flex h-screen bg-gray-50 overflow-hidden font-sans text-right relative" dir="rtl">
+      
+      {/* غطاء تحميل الاستيراد العالمي */}
+      {isImporting && (
+        <div className="fixed inset-0 z-[500] bg-white/80 backdrop-blur-md flex flex-col items-center justify-center animate-in fade-in duration-300">
+           <div className="p-8 bg-white rounded-[3rem] shadow-2xl border border-gray-100 flex flex-col items-center text-center space-y-6">
+              <div className="relative">
+                 <Loader2 size={64} className="text-blue-600 animate-spin" />
+                 <Database size={24} className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-blue-400" />
+              </div>
+              <div>
+                 <h4 className="text-xl font-black text-gray-800">جاري معالجة قاعدة البيانات</h4>
+                 <p className="text-sm font-bold text-gray-500 mt-2">يرجى الانتظار، نقوم بفحص وتثبيت ملف النسخة الاحتياطية...</p>
+              </div>
+           </div>
+        </div>
+      )}
+
+      {/* نافذة ملخص الاستيراد والنجاح */}
+      {importSummary && (
+        <div className="fixed inset-0 z-[600] bg-black/40 backdrop-blur-sm flex items-center justify-center p-4">
+           <div className="bg-white rounded-[2.5rem] w-full max-w-md shadow-2xl overflow-hidden animate-in zoom-in duration-300">
+              <div className="p-8 text-center space-y-6">
+                 <div className="w-20 h-20 bg-green-50 text-green-600 rounded-[2rem] flex items-center justify-center mx-auto shadow-inner ring-8 ring-green-50/50">
+                    <CheckCircle size={48} />
+                 </div>
+                 <h4 className="text-2xl font-black text-gray-900">اكتملت استعادة البيانات!</h4>
+                 <div className="grid grid-cols-2 gap-3">
+                    <div className="bg-gray-50 p-4 rounded-2xl border border-gray-100">
+                       <p className="text-[10px] font-black text-gray-400 uppercase">الشركات</p>
+                       <p className="text-lg font-black text-gray-800">{importSummary.companies}</p>
+                    </div>
+                    <div className="bg-gray-50 p-4 rounded-2xl border border-gray-100">
+                       <p className="text-[10px] font-black text-gray-400 uppercase">ملفات التدقيق</p>
+                       <p className="text-lg font-black text-gray-800">{importSummary.files}</p>
+                    </div>
+                 </div>
+                 <div className="p-4 bg-blue-50 rounded-2xl border border-blue-100 flex items-start gap-3 text-right">
+                    <RefreshCw size={24} className="text-blue-600 shrink-0 mt-1 animate-spin-slow" />
+                    <p className="text-[11px] font-bold text-blue-800 leading-relaxed">يجب إعادة تحميل التطبيق الآن لضمان ظهور البيانات الجديدة في كافة القوائم والتقارير بشكل صحيح.</p>
+                 </div>
+                 <button 
+                   onClick={() => window.location.reload()}
+                   className="w-full py-4 bg-blue-600 text-white rounded-2xl font-black shadow-xl shadow-blue-200 hover:bg-blue-700 transition-all flex items-center justify-center gap-3 active:scale-95"
+                 >
+                    إعادة تحميل النظام الآن <RefreshCw size={20} />
+                 </button>
+              </div>
+           </div>
+        </div>
+      )}
+
       {notification && (
         <div className="fixed top-6 left-1/2 -translate-x-1/2 z-[300] animate-in slide-in-from-top duration-300">
            <div className={`flex items-center gap-3 px-6 py-4 rounded-[1.5rem] shadow-2xl border ${
-             notification.type === 'success' ? 'bg-green-600 text-white border-green-500' : 'bg-red-600 text-white border-red-500'
+             notification.type === 'success' ? 'bg-green-600 text-white border-green-500' : 
+             notification.type === 'error' ? 'bg-red-600 text-white border-red-500' : 'bg-blue-600 text-white border-blue-500'
            }`}>
-              {notification.type === 'success' ? <CheckCircle size={20} /> : <AlertCircle size={20} />}
+              {notification.type === 'success' ? <CheckCircle size={20} /> : 
+               notification.type === 'error' ? <AlertCircle size={20} /> : <DatabaseZap size={20} />}
               <p className="text-sm font-black whitespace-nowrap">{notification.message}</p>
               <button onClick={() => setNotification(null)} className="mr-4 opacity-70 hover:opacity-100 transition-opacity">
                 <X size={16} />
@@ -417,9 +497,16 @@ const App: React.FC = () => {
                         </div>
                         <p className="text-xs text-gray-400 font-bold leading-relaxed px-4">ارفع ملف النسخة الاحتياطية (.json) لاستعادة كافة البيانات السابقة على هذا الجهاز.</p>
                         
-                        <label className="cursor-pointer w-full py-6 mt-2 bg-white border-2 border-dashed border-purple-200 text-purple-600 rounded-[1.5rem] font-black hover:bg-purple-50 transition-all flex flex-col items-center justify-center gap-2 group">
-                           <input type="file" accept=".json" className="hidden" onChange={importDatabase} />
-                           <span className="group-hover:scale-110 transition-transform">اختيار ملف النسخة</span>
+                        <label className={`cursor-pointer w-full py-6 mt-2 bg-white border-2 border-dashed border-purple-200 text-purple-600 rounded-[1.5rem] font-black hover:bg-purple-50 transition-all flex flex-col items-center justify-center gap-2 group ${isImporting ? 'opacity-50 pointer-events-none' : ''}`}>
+                           <input type="file" accept=".json" className="hidden" onChange={importDatabase} disabled={isImporting} />
+                           {isImporting ? (
+                             <div className="flex items-center gap-2">
+                               <Loader2 size={24} className="animate-spin" />
+                               <span>جاري المعالجة...</span>
+                             </div>
+                           ) : (
+                             <span className="group-hover:scale-110 transition-transform">اختيار ملف النسخة</span>
+                           )}
                         </label>
                      </div>
 
@@ -440,13 +527,19 @@ const App: React.FC = () => {
                   </div>
                </div>
 
-               <div className="bg-amber-50/60 p-5 rounded-[1.5rem] border border-amber-100 flex items-center gap-4 max-w-2xl mx-auto shadow-sm">
-                  <div className="bg-amber-100 p-2 rounded-xl text-amber-600">
-                    <DatabaseZap size={24} />
+               <div className="bg-amber-50/60 p-6 rounded-[2rem] border border-amber-200 flex flex-col sm:flex-row items-center gap-5 max-w-3xl mx-auto shadow-sm">
+                  <div className="bg-amber-100 p-4 rounded-3xl text-amber-600">
+                    <Info size={32} />
                   </div>
-                  <div className="flex-1">
-                     <h5 className="text-[11px] font-black text-amber-900 uppercase tracking-wide">نظام الحفظ التلقائي مفعل</h5>
-                     <p className="text-[10px] font-bold text-amber-700 mt-0.5 leading-relaxed">يتم حفظ جميع التعديلات لحظياً في ذاكرة المتصفح. يمكنك الانتقال بين الأجهزة عن طريق "تصدير" و "استيراد" الملف.</p>
+                  <div className="flex-1 text-center sm:text-right">
+                     <h5 className="text-sm font-black text-amber-900 uppercase tracking-wide flex items-center gap-2 justify-center sm:justify-start">
+                        <FileJson size={16} /> ملاحظات تقنية حول المزامنة
+                     </h5>
+                     <p className="text-[11px] font-bold text-amber-700 mt-2 leading-relaxed">
+                        • "أوديت برو" يحفظ البيانات في <b>ذاكرة المتصفح المحلية</b> لجهازك فقط لضمان الخصوصية.<br/>
+                        • لا توجد مزامنة تلقائية مع Google Drive. إذا قمت برفع ملف نسخة لـ AI Studio، فلن يظهر في Drive إلا إذا قمت بـ "تصديره" يدوياً إلى هناك.<br/>
+                        • عند استيراد ملف، تأكد من الضغط على "إعادة تحميل" في الرسالة التي ستظهر لك لتحديث واجهة المستخدم.
+                     </p>
                   </div>
                </div>
             </div>

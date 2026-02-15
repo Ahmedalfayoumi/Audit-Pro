@@ -84,13 +84,17 @@ const MaterialityView: React.FC<MaterialityViewProps> = ({ file, onUpdateFile, o
     });
   };
 
-  const handlePrint = () => {
+  const handleDownloadPDF = () => {
     setIsPrinting(true);
     // إعطاء مهلة بسيطة للمتصفح للتأكد من رندرة كافة العناصر قبل فتح نافذة الطباعة
     setTimeout(() => {
       const originalTitle = document.title;
+      // تغيير عنوان الصفحة مؤقتاً ليكون هو اسم ملف الـ PDF عند الحفظ
       document.title = `نموذج_الأهمية_النسبية_${file.companyName}_${file.financialYear}`;
+      
       window.print();
+      
+      // استعادة العنوان الأصلي
       document.title = originalTitle;
       setIsPrinting(false);
     }, 300);
@@ -102,9 +106,10 @@ const MaterialityView: React.FC<MaterialityViewProps> = ({ file, onUpdateFile, o
         @media print {
           @page {
             size: A4;
-            margin: 1.5cm;
+            margin: 2cm;
           }
 
+          /* إعدادات المتصفح لإجبار طباعة الخلفيات */
           * {
             -webkit-print-color-adjust: exact !important;
             print-color-adjust: exact !important;
@@ -116,6 +121,7 @@ const MaterialityView: React.FC<MaterialityViewProps> = ({ file, onUpdateFile, o
             background: white !important;
           }
 
+          /* إخفاء واجهة التطبيق أثناء الطباعة */
           .no-print, header, nav, aside, button, .custom-scrollbar::-webkit-scrollbar {
             display: none !important;
             visibility: hidden !important;
@@ -145,7 +151,7 @@ const MaterialityView: React.FC<MaterialityViewProps> = ({ file, onUpdateFile, o
 
           .print-title {
             text-align: center;
-            font-size: 20pt;
+            font-size: 18pt;
             font-weight: 900;
             color: #1e293b;
           }
@@ -154,11 +160,7 @@ const MaterialityView: React.FC<MaterialityViewProps> = ({ file, onUpdateFile, o
             display: grid;
             grid-template-columns: 1fr 1fr;
             gap: 15pt;
-            margin-bottom: 25pt;
-            background-color: #f8fafc;
-            border: 1pt solid #e2e8f0;
-            padding: 15pt;
-            border-radius: 10pt;
+            margin-bottom: 20pt;
           }
 
           .print-label {
@@ -190,13 +192,13 @@ const MaterialityView: React.FC<MaterialityViewProps> = ({ file, onUpdateFile, o
           .print-table-head {
             background-color: #f1f5f9 !important;
             font-weight: 900;
-            width: 65%;
+            width: 60%;
           }
 
           .print-table-val {
             text-align: center;
             font-weight: 900;
-            width: 35%;
+            width: 40%;
             font-family: 'Courier New', monospace;
           }
 
@@ -206,7 +208,7 @@ const MaterialityView: React.FC<MaterialityViewProps> = ({ file, onUpdateFile, o
           }
 
           .final-materiality-box {
-            margin-top: 25pt;
+            margin-top: 30pt;
             background-color: #f0fdf4 !important;
             border: 2pt solid #16a34a !important;
             padding: 20pt;
@@ -215,14 +217,6 @@ const MaterialityView: React.FC<MaterialityViewProps> = ({ file, onUpdateFile, o
             justify-content: space-between;
             align-items: center;
           }
-
-          .notes-box {
-            margin-top: 20pt;
-            border: 1pt solid #e2e8f0;
-            padding: 15pt;
-            border-radius: 10pt;
-            min-height: 100pt;
-          }
         }
 
         .print-only {
@@ -230,9 +224,14 @@ const MaterialityView: React.FC<MaterialityViewProps> = ({ file, onUpdateFile, o
         }
       `}</style>
 
+      {/* الرأس المرئي في التطبيق */}
       <header className="h-16 bg-white border-b flex items-center justify-between px-8 shadow-sm shrink-0 no-print z-[90]">
         <div className="flex items-center gap-4">
-          <button type="button" onClick={onBack} className="p-2 text-gray-600 hover:bg-gray-100 rounded-xl transition-all">
+          <button 
+            type="button"
+            onClick={onBack} 
+            className="p-2 text-gray-600 hover:bg-gray-100 rounded-xl transition-all"
+          >
             <ArrowRight size={24} />
           </button>
           <div>
@@ -244,7 +243,7 @@ const MaterialityView: React.FC<MaterialityViewProps> = ({ file, onUpdateFile, o
           <button 
             type="button"
             disabled={isPrinting}
-            onClick={handlePrint}
+            onClick={handleDownloadPDF}
             className={`flex items-center gap-2 px-6 py-2.5 rounded-xl text-xs font-black shadow-lg transition-all active:scale-95 ${
               isPrinting ? 'bg-slate-400 cursor-not-allowed' : 'bg-slate-800 text-white hover:bg-black'
             }`}
@@ -262,6 +261,7 @@ const MaterialityView: React.FC<MaterialityViewProps> = ({ file, onUpdateFile, o
         </div>
       </header>
 
+      {/* المحتوى التفاعلي في التطبيق */}
       <div className="flex-1 overflow-y-auto p-4 sm:p-8 custom-scrollbar no-print bg-[#f8fafc]">
         <div className="max-w-4xl mx-auto space-y-6">
           <div className="bg-white p-6 rounded-[2rem] shadow-sm border border-gray-100 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -398,6 +398,7 @@ const MaterialityView: React.FC<MaterialityViewProps> = ({ file, onUpdateFile, o
         </div>
       </div>
 
+      {/* قالب الطباعة (مخفي في التطبيق) */}
       <div className="print-only print-container" dir="rtl">
         <div className="print-header">
            <div className="text-xl font-black text-blue-600">AUDIT PRO SYSTEM</div>
@@ -416,61 +417,50 @@ const MaterialityView: React.FC<MaterialityViewProps> = ({ file, onUpdateFile, o
         <table className="print-table">
           <tbody>
             <tr>
-              <td className="print-table-head">1- إجمالي الإيرادات السنوية (المعدلة):</td>
+              <td className="print-table-head">1- إجمالي الإيرادات السنوية (المحققة/المتوقعة):</td>
               <td className="print-table-val" dir="ltr">{formatNum(totalRevenue)}</td>
             </tr>
             <tr>
-              <td className="print-table-head">2- إجمالي الموجودات (المعدلة):</td>
+              <td className="print-table-head">2- إجمالي الموجودات (الأصول):</td>
               <td className="print-table-val" dir="ltr">{formatNum(totalAssets)}</td>
             </tr>
             <tr>
-              <td className="print-table-head">
-                 3- أساس احتساب آخر:<br/>
-                 <span style={{ fontSize: '9pt', fontWeight: 'normal', color: '#666' }}>المبرر: {currentMateriality.otherBasisReason || 'لا يوجد'}</span>
-              </td>
-              <td className="print-table-val" dir="ltr">{formatNum(otherBasis)}</td>
-            </tr>
-            <tr className="highlight-row">
-              <td className="print-table-head">4- أساس المادية المعتمد (الأقل من 1، 2، 3):</td>
-              <td className="print-table-val" dir="ltr" style={{ color: '#2563eb' }}>{formatNum(materialityBaseValue)}</td>
+              <td className="print-table-head">3- أساس المادية المعتمد (الأقل من أعلاه):</td>
+              <td className="print-table-val" dir="ltr">{formatNum(materialityBaseValue)}</td>
             </tr>
             <tr>
-              <td className="print-table-head">5- درجة المخاطر المقررة:</td>
+              <td className="print-table-head">4- درجة المخاطر المقررة:</td>
               <td className="print-table-val">{currentMateriality.riskLevel} ({riskLevelData.label})</td>
             </tr>
             <tr>
-              <td className="print-table-head">6- نسبة الاحتساب المطبقة (بناءً على جدول المخاطر):</td>
+              <td className="print-table-head">5- نسبة الاحتساب المطبقة (بناءً على جدول المخاطر):</td>
               <td className="print-table-val" dir="ltr">{(percentageBasis * 100).toFixed(2)}%</td>
             </tr>
             <tr>
-              <td className="print-table-head">7- المادية الأساسية المحتسبة (الأساس × النسبة):</td>
+              <td className="print-table-head">6- المادية الأساسية المحتسبة (3 × 5):</td>
               <td className="print-table-val" dir="ltr">{formatNum(basicMateriality)}</td>
-            </tr>
-            <tr>
-              <td className="print-table-head">8- هامش الخطأ غير المتوقع (نسبة ثابتة 5%):</td>
-              <td className="print-table-val" dir="ltr">5.00%</td>
             </tr>
           </tbody>
         </table>
 
         <div className="final-materiality-box">
-           <div style={{ fontSize: '14pt', fontWeight: '900', color: '#166534' }}>9 - الأهمية النسبية النهائية المعتمدة للتدقيق:</div>
+           <div style={{ fontSize: '14pt', fontWeight: '900', color: '#166534' }}>الأهمية النسبية النهائية المعتمدة للتدقيق:</div>
            <div style={{ fontSize: '22pt', fontWeight: '900', color: '#166534' }} dir="ltr">{formatNum(calculatedMateriality)}</div>
         </div>
 
-        <div className="notes-box">
-           <div style={{ fontWeight: '900', marginBottom: '8pt', textDecoration: 'underline' }}>ملاحظات وتوصيات المدقق:</div>
-           <div style={{ fontSize: '10pt', lineHeight: '1.6', color: '#334155' }}>
-             {currentMateriality.notes || 'لم يقم المدقق بتسجيل ملاحظات إضافية لهذا النموذج.'}
+        <div style={{ marginTop: '40pt', borderTop: '1pt solid #cbd5e1', paddingTop: '10pt' }}>
+           <div style={{ fontWeight: '900', marginBottom: '5pt' }}>ملاحظات ومبررات إضافية:</div>
+           <div style={{ fontSize: '10pt', color: '#475569', minHeight: '80pt' }}>
+             {currentMateriality.notes || 'لا توجد ملاحظات إضافية مسجلة.'}
            </div>
         </div>
 
-        <div style={{ marginTop: '40pt', display: 'flex', justifyContent: 'space-between' }}>
-           <div style={{ textAlign: 'center', width: '200pt' }}>
-              <div style={{ borderTop: '1pt solid black', paddingTop: '5pt', fontSize: '10pt', fontWeight: '900' }}>توقيع المدقق المسؤول</div>
+        <div style={{ marginTop: '50pt', display: 'flex', justifyContent: 'space-between' }}>
+           <div style={{ textAlign: 'center', width: '150pt' }}>
+              <div style={{ borderTop: '1pt solid black', paddingTop: '5pt', fontSize: '9pt', fontWeight: '900' }}>توقيع المدقق المسؤول</div>
            </div>
-           <div style={{ textAlign: 'center', width: '200pt' }}>
-              <div style={{ borderTop: '1pt solid black', paddingTop: '5pt', fontSize: '10pt', fontWeight: '900' }}>توقيع الشريك المسؤول</div>
+           <div style={{ textAlign: 'center', width: '150pt' }}>
+              <div style={{ borderTop: '1pt solid black', paddingTop: '5pt', fontSize: '9pt', fontWeight: '900' }}>توقيع الشريك المسؤول</div>
            </div>
         </div>
       </div>
